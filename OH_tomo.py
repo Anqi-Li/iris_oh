@@ -6,8 +6,13 @@ from matplotlib.colors import LogNorm
 from scipy.interpolate import interp1d
 
 #%%
-ir = xr.open_dataset('ir_slc_003713_ch1.nc').sel(pixel=slice(21,128))
+ch = 1
+orbit_num = '003713'
+path = '~/Documents/osiris_database/globus/StrayLightCorrected/Channel{}/'.format(ch)
+filename = 'ir_slc_{}_ch{}.nc'.format(orbit_num, ch)
+ir = xr.open_dataset(path+filename).sel(pixel=slice(21,128))
 
+#%%
 l1 = ir.data.where(ir.data.notnull(), drop=True).where(ir.sza>90, drop=True)
 time = l1.time
 error = ir.error.sel(time=time)
@@ -19,42 +24,62 @@ sc_pos, *_ = xr.broadcast(ir.position_ecef.sel(time=time), sc_look)
 
 # %% interpolation in altitude grid
 # alts_interp = np.arange(20e3, 90e3, .5e3)
-# data_interp = []
+# data_interp_ch1 = []
 # for (data, alt) in zip(ir.data.where(ir.data.notnull(), drop=True).T, 
 #                         ir.altitude.where(ir.data.notnull(), drop=True)):
 #     f = interp1d(alt, data, bounds_error=False)
-#     data_interp.append(f(alts_interp))
-# data_interp = xr.DataArray(data_interp, coords=[ir.data.dropna('time', 'all').time, alts_interp],
+#     data_interp_ch1.append(f(alts_interp))
+# data_interp_ch1 = xr.DataArray(data_interp_ch1, coords=[ir.data.dropna('time', 'all').time, alts_interp],
 #                            dims=[ir.time.name, 'z'])
+# data_interp_ch3 = []
+# for (data, alt) in zip(ir_ch3.data.where(ir_ch3.data.notnull(), drop=True).T, 
+#                         ir_ch3.altitude.where(ir_ch3.data.notnull(), drop=True)):
+#     f = interp1d(alt, data, bounds_error=False)
+#     data_interp_ch3.append(f(alts_interp))
+# data_interp_ch3 = xr.DataArray(data_interp_ch3, coords=[ir_ch3.data.dropna('time', 'all').time, alts_interp],
+#                            dims=[ir_ch3.time.name, 'z'])
+
 # fig, ax = plt.subplots(2,1, sharex=True)
-# data_interp.isel(time=slice(0,500)).plot(x=ir.time.name, norm=LogNorm(), vmin=1e10, vmax=5e11, ax=ax[0])
-# ir.sza.plot(x=ir.time.name, ax=ax[1])
+# data_interp_ch1.isel(time=slice(0,500)).plot(x=ir.time.name, norm=LogNorm(), vmin=1e10, vmax=5e11, ax=ax[0])
+# data_interp_ch3.isel(time=slice(0,500)).plot(x=ir.time.name, norm=LogNorm(), ax=ax[1])
+# ax[0].title('Channel 1')
+# ax[1].title('Channel 2')
 
 # %%
 im_lst = range(0,100)
-pixel_map = ((tan_alt>60e3)*(tan_alt<95e3))
-
-#%% 1D inversion
-%%time
+tan_low = 60e3
+tan_up = 95e3
+pixel_map = ((tan_alt>tan_low)*(tan_alt<tan_up))
+if ch==1:
+    peak_apprx = 5e3 #7.5e3  # approximation of the airglow peak, used in Sa
+elif ch==3:
+    peak_apprx = 5e4 #%% 1D inversion
+#%%
+# %%time
 from oem_functions import linear_oem
 from geometry_functions import pathl1d_iris
 
-z = np.arange(55e3, 95e3, 1e3) # m
-z_top = z[-1] + 2e3
-xa = np.ones(len(z)) * 0 # temp
-Sa = np.diag(np.ones(len(z)))*(5e3)**2 #temp
-# xa = result_1d_save.ver.mean(dim='time').values
-# Sa = np.diag((0.2*xa)**2)
-# xa_error2_save = result_1d_save.error2_retrieval
+z = np.arange(tan_low-5e3, tan_up+50e3, 1e3) # m
+z_top = z[-1] + (z[-1]-z[-2]) #m
+xa = np.ones(len(z)) * 0 
+sigma_a = np.ones_like(xa) * peak_apprx
+# sigma_a[np.where(np.logical_or(z<tan_low, z>tan_up))] = 1e-1
+sigma_a = np.ones_like(xa) * peak_apprx
+n = (z<tan_low).sum()
+sigma_a[np.where(z<tan_low)] = np.logspace(-1, np.log10(peak_apprx), n)
+n = (z>tan_up).sum()
+sigma_a[np.where(z>tan_up)] = np.logspace(np.log10(peak_apprx), -1, n)
+Sa = np.diag(sigma_a ** 2)
+
 mr = []
 error2_retrieval = []
 ver = []
 for i in range(len(im_lst)):
+    print(i)
     isel_args = dict(time=im_lst[i])
     h = tan_alt.isel(**isel_args).where(pixel_map.isel(**isel_args), drop=True)
     K = pathl1d_iris(h.values, z, z_top)  *1e2 #m->cm
     y = l1.sel(pixel=h.pixel, time=h.time).values
-    # Sa = np.diag(xa_error2_save.sel(time=h.time).values)
     Se = np.diag(error.sel(pixel=h.pixel, time=h.time).values**2)
     x, A, Ss, Sm = linear_oem(K, Se, Sa, y, xa)
     ver.append(x)
@@ -72,17 +97,46 @@ result_1d = xr.Dataset().update({
 mr_threshold = 0.8
 ver_1d_mean = result_1d.ver.where(result_1d.mr>mr_threshold).mean(dim='time')
 error_1d_mean = result_1d.error2_retrieval.where(result_1d.mr>mr_threshold).mean('time')
-#%%
-# plot VER results
-plt.figure()
-result_1d.ver.plot.line(y='z', marker='.', ls='', add_legend=False)
+
+#% plot VER results
+# plt.figure()
+# result_1d.ver.plot.line(y='z', marker='.', ls='', add_legend=False)
+# ver_1d_mean.plot(y='z', color='k',ls='-',
+#                     label='averaged with MR>.{}'.format(mr_threshold))
+# (ver_1d_mean + np.sqrt(error_1d_mean)).plot(y='z', color='k', ls='--', label='averaged + error')
+# (ver_1d_mean - np.sqrt(error_1d_mean)).plot(y='z', color='k', ls='--', label='averaged - error')
+
+# plt.fill_betweenx(z, xa+np.sqrt(np.diag(Sa)), xa-np.sqrt(np.diag(Sa)), alpha=0.2, label='xa, Sa')
+# # plt.fill_betweenx(z, ver_1d_mean+np.sqrt(error_1d_mean), ver_1d_mean-np.sqrt(error_1d_mean), alpha=0.9, label='x_hat, Sm')
+
+# plt.gca().set(xlabel='VER / [photons cm-3 s-1]', 
+#     #    ylabel='Altitdue grid',
+#        title='1D retrieval of images {}'.format(im_lst))
+# plt.legend()
+# plt.show()
+
+# heatmap plot
+from xhistogram.xarray import histogram
+import matplotlib.pylab as pl
+from matplotlib.colors import ListedColormap
+
+# Choose colormap
+cmap = pl.cm.viridis
+# Get the colormap colors
+my_cmap = cmap(np.arange(cmap.N))
+# Set alpha
+my_cmap[:,-1] = np.linspace(0, 1, cmap.N)
+# Create new colormap
+my_cmap = ListedColormap(my_cmap)
+
+h_z = histogram(result_1d.ver, bins=[np.linspace(-4e3, 8e3)], dim=['time'])
+h_z.plot(vmax=im_lst[-1]*0.4, cmap=my_cmap)
+
 ver_1d_mean.plot(y='z', color='k',ls='-',
                     label='averaged with MR>.{}'.format(mr_threshold))
 (ver_1d_mean + np.sqrt(error_1d_mean)).plot(y='z', color='k', ls='--', label='averaged + error')
 (ver_1d_mean - np.sqrt(error_1d_mean)).plot(y='z', color='k', ls='--', label='averaged - error')
-
-plt.fill_betweenx(z, xa+np.sqrt(np.diag(Sa)), xa-np.sqrt(np.diag(Sa)), alpha=0.2, label='xa, Sa')
-# plt.fill_betweenx(z, ver_1d_mean+np.sqrt(error_1d_mean), ver_1d_mean-np.sqrt(error_1d_mean), alpha=0.9, label='x_hat, Sm')
+plt.fill_betweenx(z, xa+np.sqrt(np.diag(Sa)), xa-np.sqrt(np.diag(Sa)), alpha=0.1, label='xa, Sa')
 
 plt.gca().set(xlabel='VER / [photons cm-3 s-1]', 
     #    ylabel='Altitdue grid',
@@ -93,7 +147,7 @@ plt.show()
 # AVK plot
 A = xr.DataArray(A, coords=(z,z), dims=('row', 'col'), name='AVKs')
 plt.figure()
-A.plot.line(y='col', hue='row', add_legend=False)
+A.plot.line(y='row', hue='col', add_legend=False)
 A.sum('col').plot(y='row', color='k', label='MR')
 # result_1d.mr.isel(time=-1).plot.line(y='z')
 plt.gca().set(xlabel='',
@@ -104,13 +158,13 @@ plt.show()
 fig, ax = plt.subplots(2,1,sharex=True, sharey=True)
 plt_args = dict(x='time', y='z')
 map_args = dict(cond=result_1d.mr>mr_threshold, drop=True)
-result_1d.ver.where(**map_args).plot(ax=ax[0], vmin=0, vmax=7.5e3, **plt_args)
+result_1d.ver.where(**map_args).plot(ax=ax[0], vmin=0, vmax=peak_apprx, **plt_args)
 result_1d.error2_retrieval.where(**map_args).pipe(lambda x: 100*np.sqrt(x)/result_1d.ver
-            ).rename('% error').plot(ax=ax[1], vmin=0, vmax=50, **plt_args)
+            ).rename('% error').plot(ax=ax[1], vmin=0, vmax=20, **plt_args)
 plt.show()
 
 #%%
-# result_1d_save = result_1d.copy()
+result_1d_save = result_1d.copy()
 
 #%% change coordinate for Tomography
 #====define the new base vectors
@@ -236,16 +290,15 @@ K_coo = coo_matrix((K_value, (K_row_idx, K_col_idx)), shape = (row_len, col_len)
 %%time
 from oem_functions import linear_oem_sp
 import scipy.sparse as sp
-# y = np.ravel(l1.isel(time=im_lst))[np.where(np.ravel(pixel_map.isel(time=im_lst)))] # remove all nan
 y = l1.isel(time=im_lst).stack(meas_id=['time', 'pixel']).where(
     pixel_map.isel(time=im_lst).stack(meas_id=['time', 'pixel']), drop=True).values
 # y[y<0] = 0 #temp
-# xa = np.ones(col_len) *0 # temp
-xa = ver_1d_mean.fillna(0).interp(z=grid_rho, kwargs=dict(fill_value='extrapolate'))
-xa = np.tile(xa, (len(grid_alpha),len(grid_beta),1)).ravel()
-sigma2 = error_1d_mean.mean().values
-Sa = sp.diags(sigma2 * np.ones(col_len))
-# Sa = sp.diags([1], shape=(col_len, col_len)) * 2e6 #(5e3)**2 #temp 1e10?
+xa = np.ones(col_len) * 0 # temp
+# xa = ver_1d_mean.fillna(0).interp(z=grid_rho, kwargs=dict(fill_value='extrapolate'))
+# xa = np.tile(xa, (len(grid_alpha),len(grid_beta),1)).ravel()
+# sigma2 = error_1d_mean.mean().values
+# Sa = sp.diags(sigma2 * np.ones(col_len))
+Sa = sp.diags([1], shape=(col_len, col_len)) * peak_apprx**2 #2e6 #(5e3)**2 #temp 1e10?
 Se = sp.diags(error.isel(time=im_lst).stack(meas_id=['time', 'pixel']).where(
     pixel_map.isel(time=im_lst).stack(meas_id=['time', 'pixel']), drop=True).values**2)
 x_hat, G = linear_oem_sp(K_coo, Se, Sa, y, xa)
@@ -270,7 +323,7 @@ result_tomo = xr.Dataset({
 fig, ax = plt.subplots(2,1, sharex=True, sharey=True)
 result_tomo.ver.isel(alpha=1
     ).assign_coords(beta=result_tomo.beta*Re, rho=result_tomo.rho*1e-3
-    ).plot(ax=ax[0], x='beta', vmin=0, vmax=7.5e3, cmap='viridis')
+    ).plot(ax=ax[0], x='beta', vmin=0, vmax=peak_apprx, cmap='viridis')
 
 CS = result_tomo.mr.isel(alpha=1
     ).assign_coords(beta=result_tomo.beta*Re, rho=result_tomo.rho*1e-3
@@ -293,6 +346,7 @@ ax[1].set(title='',
         xlabel='Distance along track / km',
         ylabel='z / km')
 plt.show()
+
 #%% vertical profiles 
 plt.figure()
 result_tomo.ver.where(result_tomo.mr>mr_threshold).isel(alpha=1
