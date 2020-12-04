@@ -74,7 +74,7 @@ def invert_1d(orbit):
 
 ch = 1
 path = '~/Documents/osiris_database/globus/StrayLightCorrected/Channel{}/'.format(ch)
-orbit = 3723
+orbit = 3713
 while orbit < 10000:
     print(orbit)
     try:
