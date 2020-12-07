@@ -41,13 +41,17 @@ def invert_1d(orbit):
 
     mr = []
     error2_retrieval = []
+    error2_smoothing = []
     ver = []
-    y_fit = []
+    limb_fit = []
+    time_save = []
     for i in range(len(im_lst)):
-        # print(i, '/', len(im_lst), '/', orbit)
         print('{}/{}/{}'.format(i, len(im_lst), orbit))
         isel_args = dict(time=im_lst[i])
         h = tan_alt.isel(**isel_args).where(pixel_map.isel(**isel_args), drop=True)
+        if len(h)<1:
+            print('not enough pixels')
+            continue
         K = pathl1d_iris(h.values, z, z_top)  *1e2 #m->cm
         y = l1.sel(pixel=h.pixel, time=h.time).values
         Se = np.diag(error.sel(pixel=h.pixel, time=h.time).values**2)
@@ -55,26 +59,31 @@ def invert_1d(orbit):
         ver.append(x)
         mr.append(A.sum(axis=1)) #sum over rows 
         error2_retrieval.append(np.diag(Sm))
-        y_fit = y - K.dot(x)
+        error2_smoothing.append(np.diag(Ss))
+        limb_fit.append(xr.DataArray(y-K.dot(x), coords=[('pixel', h.pixel)]
+                        ).reindex(pixel=l1.pixel))
+        time_save.append(time[im_lst[i]].values)
 
-    result_1d = xr.Dataset().update({
-        'time': time[im_lst],
-        'z': (['z',], z, {'units': 'm'}),
-        'ver': (['time','z'], ver, {'long name': 'VER', 'units': 'photons cm-3 s-1'}),
-        'mr': (['time','z'], mr),
-        'error2_retrieval': (['time','z'], error2_retrieval),
-        'y_fit': (['time','z'], y_fit),
-        'latitude': (['time',], ir.latitude.sel(time=time)),
-        'longitude': (['time',], ir.longitude.sel(time=time)),
-        'orbit': ir.orbit,
-        'channel': ir.channel,
-        })
-
-    result_1d.to_netcdf('~/Documents/osiris_database/iris_oh/iri_oh_ver_{}.nc'.format(orbit_num))
+    if len(time_save) > 0:
+        result_1d = xr.Dataset().update({
+            'time': (['time'], time_save),
+            'z': (['z',], z, {'units': 'm'}),
+            'pixel': (['pixel',], l1.pixel),
+            'ver': (['time','z'], ver, {'long name': 'VER', 'units': 'photons cm-3 s-1'}),
+            'mr': (['time','z'], mr),
+            'error2_retrieval': (['time','z'], error2_retrieval),
+            'error2_smoothing': (['time','z'], error2_smoothing),
+            'limb_fit': (['time','pixel'], limb_fit),
+            'latitude': (['time',], ir.latitude.sel(time=time_save)),
+            'longitude': (['time',], ir.longitude.sel(time=time_save)),
+            'orbit': ir.orbit,
+            'channel': ir.channel,
+            })
+        result_1d.to_netcdf('~/Documents/osiris_database/iris_oh/iri_oh_ver_{}.nc'.format(orbit_num))
 
 ch = 1
 path = '~/Documents/osiris_database/globus/StrayLightCorrected/Channel{}/'.format(ch)
-orbit = 3713
+orbit = 4218
 while orbit < 10000:
     print(orbit)
     try:

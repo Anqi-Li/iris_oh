@@ -7,7 +7,8 @@ from scipy.interpolate import interp1d
 
 #%%
 ch = 1
-orbit_num = '003713'
+orbit = 4218
+orbit_num = str(orbit).zfill(6)
 path = '~/Documents/osiris_database/globus/StrayLightCorrected/Channel{}/'.format(ch)
 filename = 'ir_slc_{}_ch{}.nc'.format(orbit_num, ch)
 ir = xr.open_dataset(path+filename).sel(pixel=slice(21,128))
@@ -17,10 +18,10 @@ l1 = ir.data.where(ir.data.notnull(), drop=True).where(ir.sza>90, drop=True)
 time = l1.time
 error = ir.error.sel(time=time)
 tan_alt = ir.altitude.sel(time=time)
-tan_lat, *_ = xr.broadcast(ir.latitude.sel(time=time), tan_alt)
-tan_lon, *_ = xr.broadcast(ir.longitude.sel(time=time), tan_alt)
-sc_look = ir.look_ecef.sel(time=time)
-sc_pos, *_ = xr.broadcast(ir.position_ecef.sel(time=time), sc_look)
+# tan_lat, *_ = xr.broadcast(ir.latitude.sel(time=time), tan_alt)
+# tan_lon, *_ = xr.broadcast(ir.longitude.sel(time=time), tan_alt)
+# sc_look = ir.look_ecef.sel(time=time)
+# sc_pos, *_ = xr.broadcast(ir.position_ecef.sel(time=time), sc_look)
 
 # %% interpolation in altitude grid
 # alts_interp = np.arange(20e3, 90e3, .5e3)
@@ -46,7 +47,7 @@ sc_pos, *_ = xr.broadcast(ir.position_ecef.sel(time=time), sc_look)
 # ax[1].title('Channel 2')
 
 # %%
-im_lst = range(0,100)
+im_lst = range(0,242)
 tan_low = 60e3
 tan_up = 95e3
 pixel_map = ((tan_alt>tan_low)*(tan_alt<tan_up))
@@ -73,11 +74,16 @@ Sa = np.diag(sigma_a ** 2)
 
 mr = []
 error2_retrieval = []
+error2_smoothing = []
 ver = []
+limb_fit = []
+time_save = []
 for i in range(len(im_lst)):
-    print(i)
+    print('{}/{}/{}'.format(im_lst[i], len(l1.time), orbit))
     isel_args = dict(time=im_lst[i])
     h = tan_alt.isel(**isel_args).where(pixel_map.isel(**isel_args), drop=True)
+    if len(h)<1:
+        continue
     K = pathl1d_iris(h.values, z, z_top)  *1e2 #m->cm
     y = l1.sel(pixel=h.pixel, time=h.time).values
     Se = np.diag(error.sel(pixel=h.pixel, time=h.time).values**2)
@@ -85,15 +91,28 @@ for i in range(len(im_lst)):
     ver.append(x)
     mr.append(A.sum(axis=1)) #sum over rows 
     error2_retrieval.append(np.diag(Sm))
+    error2_smoothing.append(np.diag(Ss))
+    limb_fit.append(xr.DataArray(y-K.dot(x), coords=[('pixel', h.pixel)]
+                      ).reindex(pixel=l1.pixel))
+    time_save.append(time[im_lst[i]].values)
 
-result_1d = xr.Dataset().update({
-    'time': time[im_lst],
-    'z': (['z',], z, {'units': 'm'}),
-    'ver': (['time','z'], ver, {'long name': 'VER', 'units': 'photons cm-3 s-1'}),
-    'mr': (['time','z'], mr),
-    'error2_retrieval': (['time','z'], error2_retrieval),
-    })
+if len(time_save) > 0:
+    result_1d = xr.Dataset().update({
+        'time': (['time'], time_save),
+        'z': (['z',], z, {'units': 'm'}),
+        'pixel': (['pixel',], l1.pixel),
+        'ver': (['time','z'], ver, {'long name': 'VER', 'units': 'photons cm-3 s-1'}),
+        'mr': (['time','z'], mr),
+        'error2_retrieval': (['time','z'], error2_retrieval),
+        'error2_smoothing': (['time','z'], error2_smoothing),
+        'limb_fit': (['time','pixel'], limb_fit),
+        'latitude': (['time',], ir.latitude.sel(time=time_save)),
+        'longitude': (['time',], ir.longitude.sel(time=time_save)),
+        'orbit': ir.orbit,
+        'channel': ir.channel,
+        })
 
+#%%
 mr_threshold = 0.8
 ver_1d_mean = result_1d.ver.where(result_1d.mr>mr_threshold).mean(dim='time')
 error_1d_mean = result_1d.error2_retrieval.where(result_1d.mr>mr_threshold).mean('time')
