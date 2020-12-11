@@ -7,7 +7,7 @@ from scipy.interpolate import interp1d
 
 #%%
 ch = 1
-orbit = 4218
+orbit = 3713
 orbit_num = str(orbit).zfill(6)
 path = '~/Documents/osiris_database/globus/StrayLightCorrected/Channel{}/'.format(ch)
 filename = 'ir_slc_{}_ch{}.nc'.format(orbit_num, ch)
@@ -112,7 +112,7 @@ if len(time_save) > 0:
         'channel': ir.channel,
         })
 
-#%%
+#%
 mr_threshold = 0.8
 ver_1d_mean = result_1d.ver.where(result_1d.mr>mr_threshold).mean(dim='time')
 error_1d_mean = result_1d.error2_retrieval.where(result_1d.mr>mr_threshold).mean('time')
