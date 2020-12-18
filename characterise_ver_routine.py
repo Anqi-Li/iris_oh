@@ -69,36 +69,11 @@ if __name__ == '__main__':
     for f in ver_file_lst:
         orbit_num = f[-9:-3]
         if orbit_num in [k[-9:-3] for k in agc_file_lst]:
+            print('{} already done'.format(orbit_num))
             pass
         else:
+            print('process orbit {}'.format(orbit_num))
             process_file(f)
 
-#%% plot stuff
 
-# fig, ax = plt.subplots(3,1, sharex=True)
-# plot_args = dict(x='time')
-# ver_character.amplitude.plot(ax=ax[0], **plot_args)
-# ver_character.peak_height.plot(ax=ax[1], **plot_args)
-# ver_character.thickness.plot(ax=ax[2], **plot_args)
-# # %%
-# gauss_fit = []
-# for a, x0, sigma in zip(ver_character.amplitude, 
-#     ver_character.peak_height, ver_character.thickness):
-#     gauss_fit.append(ver_data.z.pipe(gauss, a, x0, sigma))
-
-# gauss_fit = xr.concat(gauss_fit, 'time').assign_coords(
-#     time=ver_character.time).rename('gaussian ver')
-
-# #%%
-# fig, ax = plt.subplots(3,1, sharex=True, sharey=True)
-# plot_args = dict(cmap='viridis', x='time', robust=True, vmin=0, vmax=7e3)
-# ver_data.plot(ax=ax[0], **plot_args)
-# gauss_fit.plot(ax=ax[1], **plot_args)
-# (ver_data - gauss_fit).plot(ax=ax[2], x='time')
-
-# ax[0].set(title='Original VER',
-#             xlabel='')
-# ax[1].set(title='Gaussian fitted VER',
-#             xlabel='')
-# ax[2].set(title='Org - Gauss')
 # %%

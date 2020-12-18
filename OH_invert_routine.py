@@ -6,6 +6,7 @@ import xarray as xr
 # from scipy.interpolate import interp1d
 from oem_functions import linear_oem
 from geometry_functions import pathl1d_iris
+import glob
 
 #%%
 def invert_1d(orbit, ch, path, save_file=True, im_lst=None):
@@ -97,16 +98,25 @@ def invert_1d(orbit, ch, path, save_file=True, im_lst=None):
             result_1d.to_netcdf('~/Documents/osiris_database/iris_oh/iri_oh_ver_{}.nc'.format(orbit_num))
     return result_1d
 
+#%%
 if __name__ == '__main__':
     ch = 1
-    path = '~/Documents/osiris_database/globus/StrayLightCorrected/Channel{}/'.format(ch)
-    orbit = 3713
-    while orbit < 10000:
-        print(orbit)
+    path_limb = '~/Documents/osiris_database/globus/StrayLightCorrected/Channel{}/'.format(ch)
+    orbit = 10000
+    path_ver = '/home/anqil/Documents/osiris_database/iris_oh/'
+    ver_file_lst = glob.glob(path_ver + '*nc')
+    while orbit < 27333:
         try:
-            _ = invert_1d(orbit, ch, path)
-            orbit += 15
+            if path_ver+'iri_oh_ver_{}.nc'.format(str(orbit).zfill(6)) in ver_file_lst:
+                print('orbit {} already exist'.format(orbit))
+                pass
+            else:
+                print('process orbit {}'.format(orbit))
+                _ = invert_1d(orbit, ch, path_limb)
+            orbit += 1
         except FileNotFoundError:
             orbit += 1
             print('invert the next orbit')
             
+
+# %%
