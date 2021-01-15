@@ -6,10 +6,67 @@ import matplotlib.pyplot as plt
 # from scipy.interpolate import interp1d
 from xhistogram.xarray import histogram
 import cartopy.crs as ccrs
-
 import glob 
 
-# %% open files
+#%% spectral character
+path = '/home/anqil/Documents/osiris_database/iris_oh/'
+filelist = glob.glob(path+'spectral_character/sp_*.nc')
+ds = xr.open_mfdataset(filelist).set_coords(['longitude', 'latitude'])
+# ds = ds.where(ds.time.dt.dayofyear==335,drop=True)
+# fig, ax = plt.subplots(1,1,
+#         # subplot_kw=dict(projection=ccrs.PlateCarree(central_longitude=180)) 
+#         subplot_kw=dict(projection=ccrs.Orthographic(-80, 35))
+#                     )
+# ax.plot(ds.longitude, ds.latitude, ls='', marker='*', transform=ccrs.PlateCarree())
+# ax.coastlines()
+# ax.set_global()
+# plt.suptitle('year = 2002')
+#%% groupby time lat
+dlat = 20
+latitude_bins = np.arange(-90,90+dlat,dlat)
+latitude_labels = latitude_bins[1:]-dlat/2
+
+time_bins, mean, count = [], [], []
+for s, data in ds.max_pw_freq.groupby(ds.time.dt.month):
+    time_bins.append(s)
+    mean.append(data.groupby_bins(data.latitude, 
+        bins=latitude_bins, labels=latitude_labels).median('time', keep_attrs=True))
+    count.append(data.groupby_bins(data.latitude, 
+        bins=latitude_bins, labels=latitude_labels).count('time'))
+mean = xr.concat(mean, dim='time_bins').assign_coords(time_bins=time_bins).sortby('time_bins')
+count = xr.concat(count, dim='time_bins').assign_coords(time_bins=time_bins).sortby('time_bins')
+
+#%% groupby time lat lon
+dlat = 20
+latitude_bins = np.arange(-90,90+dlat,dlat)
+latitude_labels = latitude_bins[1:]-dlat/2
+
+dlon = 20
+longitude_bins = np.arange(0,360+dlon, dlon)
+longitude_labels = longitude_bins[1:] - dlon/2
+
+time_bins, mean, count = [], [], []
+for t, t_data in ds.max_pw_freq.groupby(ds.time.dt.season):
+    time_bins.append(t)
+    longitude_lab, lat_lon_mean, lat_lon_count = [], [], []
+    for lon, lon_t_data in t_data.groupby_bins(t_data.longitude, bins=longitude_bins, labels=longitude_labels):
+        longitude_lab.append(lon)
+        print(t, lon, len(lon_t_data.time))
+        lat_lon_mean.append(lon_t_data.groupby_bins(lon_t_data.latitude, bins=latitude_bins, labels=latitude_labels).median('time', keep_attrs=True))
+        lat_lon_count.append(lon_t_data.groupby_bins(lon_t_data.latitude, bins=latitude_bins, labels=latitude_labels).count('time', keep_attrs=True))
+        
+    mean.append(xr.concat(lat_lon_mean, dim='longitude_bins').assign_coords(longitude_bins=longitude_lab).sortby('longitude_bins'))
+    count.append(xr.concat(lat_lon_count, dim='longitude_bins').assign_coords(longitude_bins=longitude_lab).sortby('longitude_bins'))
+mean = xr.concat(mean, dim='time_bins').assign_coords(time_bins=time_bins).sortby('time_bins')
+count = xr.concat(count, dim='time_bins').assign_coords(time_bins=time_bins).sortby('time_bins')
+
+#%%
+fig, ax = plt.subplots(2,4, sharex=True, sharey=True)
+
+
+
+
+# %% gaussian character
 path = '/home/anqil/Documents/osiris_database/iris_oh/'
 agc_file_lst = glob.glob(path + 'airglow_character/agc_*.nc')
 ds = xr.open_mfdataset(agc_file_lst).set_coords(['longitude', 'latitude'])

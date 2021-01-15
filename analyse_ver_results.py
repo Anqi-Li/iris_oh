@@ -140,19 +140,26 @@ zonal_count = ver_data_oneday.groupby_bins(
 zonal_fit = zonal_mean.dropna('latitude_bins', 'all').fillna(0).load().interp(
         latitude_bins=ds.latitude.dropna('tp'))
 
-fig, ax = plt.subplots(3,1,sharex=True, sharey=True)
-plot_args = dict(cmap='viridis', x='tp', robust=True, vmin=0, vmax=7e3)
-ver_data.plot(ax=ax[0], **plot_args)
-zonal_fit.plot(ax=ax[1], **plot_args)
-(ver_data - zonal_fit).plot(ax=ax[2], y='z')
+fig, ax = plt.subplots(5,1, figsize=(6,8), sharex=True, sharey=True)
+plot_ver_args = dict(cmap='viridis', y='z', vmin=0, vmax=7e3, ylim=(60e3, 95e3))
+plot_anomaly_args = dict(cmap='RdBu', y='z', vmin=-1e3, vmax=1e3, ylim=(60e3, 95e3))
+ver_data.plot(ax=ax[0], **plot_ver_args)
+zonal_fit.plot(ax=ax[1], **plot_ver_args)
+(ver_data - zonal_fit).rolling(
+        tp=20, min_periods=10, center=True).mean().plot.contourf(
+                ax=ax[2], **plot_anomaly_args)
+gauss_fit.plot(ax=ax[3], **plot_ver_args)
+(ver_data - gauss_fit).rolling(
+        tp=20, min_periods=10, center=True).mean().plot.contourf(
+                ax=ax[4], **plot_anomaly_args)
 
-ax[0].set(title='Original VER',
-            xlabel='')
-ax[1].set(title='Daily zonal averaged VER',
-            xlabel='')
+
+ax[0].set(title='Original VER orbit {}'.format(orbit))
+ax[1].set(title='Daily zonal averaged VER')
 ax[2].set(title='Org - Average')
-
-
+ax[3].set(title='Gauss fit VER')
+ax[4].set(title='Org - Gauss')
+[ax[i].set(xlabel='') for i in range(len(ax)-1)]
 
 #%%
 import cartopy.crs as ccrs

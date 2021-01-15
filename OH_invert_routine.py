@@ -102,7 +102,8 @@ def invert_1d(orbit, ch, path, save_file=True, im_lst=None):
 if __name__ == '__main__':
     ch = 1
     path_limb = '~/Documents/osiris_database/globus/StrayLightCorrected/Channel{}/'.format(ch)
-    orbit = 10000
+    orbit = 18928
+    orbit_error = []
     path_ver = '/home/anqil/Documents/osiris_database/iris_oh/'
     ver_file_lst = glob.glob(path_ver + '*nc')
     while orbit < 27333:
@@ -117,6 +118,11 @@ if __name__ == '__main__':
         except FileNotFoundError:
             orbit += 1
             print('invert the next orbit')
+        except OSError:
+            orbit_error.append(orbit)
+            orbit += 1
+
+            
             
 
 # %%
