@@ -38,7 +38,7 @@ def process_file(f, save_file=True):
     time_save = []
     amplitude, peak_height, thickness = [], [], []
     for i in range(len(ver_data.time)):
-        print('{}/{}'.format(i, result_1d.orbit.item()))
+        # print('{}/{}'.format(i, result_1d.orbit.item()))
         try:
             isel_args = dict(time = i)
             char = characterise_layer(ver_data.isel(**isel_args))
@@ -61,6 +61,8 @@ def process_file(f, save_file=True):
         if save_file:
             ver_character.to_netcdf('/home/anqil/Documents/osiris_database/iris_oh/airglow_character/agc_{}.nc'.format(
                 str(result_1d.orbit.item()).zfill(6)))
+        return ver_character
+
 #%%
 if __name__ == '__main__':
     path = '/home/anqil/Documents/osiris_database/iris_oh/'

@@ -5,11 +5,12 @@ import numpy as np
 import xarray as xr
 from scipy.optimize import curve_fit
 #%%
-%%time
+# %%time
 ch = 1
 path = '~/Documents/osiris_database/globus/StrayLightCorrected/Channel{}/'.format(ch)
+# path = '~/Documents/sshfs/oso_extra_storage/StrayLightCorrected/Channel{}/'.format(ch)
 orbit = 3713
-result_1d = invert_1d(orbit, ch, path, save_file=False, im_lst=range(1))
+result_1d = invert_1d(orbit, ch, path, save_file=False, im_lst=range(10))
 
 #%%
 isel_args = dict(time=0)

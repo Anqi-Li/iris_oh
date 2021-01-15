@@ -3,7 +3,7 @@ import numpy as np
 import xarray as xr
 import matplotlib.pyplot as plt
 import glob
-from characterise_ver_routine import gauss
+from characterise_agc_routine import gauss
 
 #%%
 
@@ -27,7 +27,7 @@ def data_FFT(data):
                         })
     return ds_sp
 
-def characterise_wave(ds):
+def characterise_wave(ds, window_size=20, min_window_size=10):
     # reconstruct gaussion curve
     gauss_fit = []
     for a, x0, sigma in zip(ds.amplitude, 
@@ -36,12 +36,48 @@ def characterise_wave(ds):
 
     gauss_fit = xr.concat(gauss_fit, 'time').assign_coords(
         time=ds.time).rename('gaussian ver')
-
-    window_size = 20
+    
     ver_data = ds.ver.where(ds.A_diag>0.8)
-    data = (ver_data - gauss_fit).dropna('z', 'all').rolling(time=window_size, center=True, min_periods=10).mean()
+    data = (ver_data - gauss_fit).dropna('z', 'all').rolling(time=window_size, center=True, min_periods=min_window_size).mean()
     ds_sp = data_FFT(data)
     return ds_sp
+
+
+def process_file(ver_f, save_file=True):
+    orbit_num = ver_f[-9:-3]
+    # open VER file
+    ds = xr.open_dataset(ver_f)
+
+    window_size = 20
+    min_window_size = 10
+    if len(ds.time) <= min_window_size:
+        return
+    else:
+        #open airglow character (agc) file
+        path = '/home/anqil/Documents/osiris_database/iris_oh/'
+        filename = '/airglow_character/agc_{}.nc'
+        ds_agc = xr.open_dataset(path+filename.format(orbit_num))
+        ds = ds.update(ds_agc)
+
+        # spectral FFT
+        ds_sp = characterise_wave(
+            ds, window_size=window_size, min_window_size=min_window_size).reindex(
+                z=ds.z).sortby('freq').sel(freq=slice(0,1))
+        max_pw_freq, max_pw = find_spectral_max(ds_sp.sp)
+
+        ds_save = ds_sp.update({'longitude': ds.longitude,
+                                    'latitude': ds.latitude,
+                                    'orbit': ds.orbit,
+                                    'channel': ds.channel,
+                                    'max_pw': max_pw,
+                                    'max_pw_freq': max_pw_freq
+                                    })
+        # save data
+        if save_file:
+            ds_save.to_netcdf(path + 'spectral_character/sp_{}.nc'.format(orbit_num))
+        
+        return ds_save
+            
 
 #%%
 def process_orbit(orbit_num):
@@ -51,7 +87,7 @@ def process_orbit(orbit_num):
     ds = xr.open_dataset(path+filename.format(orbit_num))
 
     # open airglow character (agc) file
-    filename = '/airglow_character/agc_{}.nc'
+    filename = 'airglow_character/agc_{}.nc'
     ds_agc = xr.open_dataset(path+filename.format(orbit_num))
     ds = ds.update(ds_agc)
 
@@ -69,20 +105,19 @@ def process_orbit(orbit_num):
                             })
     return ds_save
 
-#%%
-orbit = 4814
-orbit_num = str(orbit).zfill(6)
-ds = process_orbit(orbit_num)
-ds = ds.update({'tp': (['time',], np.linspace(0,1,len(ds.time)))}).swap_dims({'time': 'tp'})
-fig, ax = plt.subplots(4,1, figsize=(6,8), sharex=True)
-ds.data.plot.contourf(x='tp', ax=ax[0], ylim=(60e3, 95e3), add_colorbar=False, cmap='RdBu', vmin=-1e3, vmax=1e3)
-ds.sp.plot.contourf(x='tp', ax=ax[1], add_colorbar=False)
-ds.max_pw.plot(x='tp', ax=ax[2])
-ds.max_pw_freq.plot(x='tp', ax=ax[3])
+#%% test on one orbit
+# orbit = 6196
+# orbit_num = str(orbit).zfill(6)
+# ds = process_orbit(orbit_num)
+# ds = ds.update({'tp': (['time',], np.linspace(0,1,len(ds.time)))}).swap_dims({'time': 'tp'})
+# fig, ax = plt.subplots(4,1, figsize=(6,8), sharex=True)
+# ds.data.plot.contourf(x='tp', ax=ax[0], ylim=(60e3, 95e3), add_colorbar=False, cmap='RdBu', vmin=-1e3, vmax=1e3)
+# ds.sp.plot.contourf(x='tp', ax=ax[1], add_colorbar=False)
+# ds.max_pw.plot(x='tp', ax=ax[2])
+# ds.max_pw_freq.plot(x='tp', ax=ax[3])
 
-[ax[i].set(xlabel='') for i in range(3)]
-ax[0].set(title='orbit {}'.format(orbit))
-#%%
+# [ax[i].set(xlabel='') for i in range(3)]
+# ax[0].set(title='orbit {}'.format(orbit))
 
 # %% 
 if __name__ == '__main__':

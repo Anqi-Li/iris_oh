@@ -62,8 +62,8 @@ def invert_1d(orbit, ch, path, save_file=True, im_lst=None):
             print('not enough pixels')
             continue
         K = pathl1d_iris(h.values, z, z_top)  *1e2 #m->cm
-        y = l1.sel(pixel=h.pixel, time=h.time).values
-        Se = np.diag(error.sel(pixel=h.pixel, time=h.time).values**2)
+        y = l1.isel(**isel_args).reindex_like(h).values
+        Se = np.diag(error.isel(**isel_args).reindex_like(h).values**2)
         x, A, Ss, Sm = linear_oem(K, Se, Sa, y, xa)
         ver.append(x)
         A_diag.append(A.diagonal())
@@ -101,8 +101,9 @@ def invert_1d(orbit, ch, path, save_file=True, im_lst=None):
 #%%
 if __name__ == '__main__':
     ch = 1
-    path_limb = '~/Documents/osiris_database/globus/StrayLightCorrected/Channel{}/'.format(ch)
-    orbit = 18928
+    # path_limb = '~/Documents/osiris_database/globus/StrayLightCorrected/Channel{}/'.format(ch)
+    path_limb = '~/Documents/sshfs/oso_extra_storage/StrayLightCorrected/Channel{}/'.format(ch)
+    orbit = 3713
     orbit_error = []
     path_ver = '/home/anqil/Documents/osiris_database/iris_oh/'
     ver_file_lst = glob.glob(path_ver + '*nc')
@@ -114,7 +115,7 @@ if __name__ == '__main__':
             else:
                 print('process orbit {}'.format(orbit))
                 _ = invert_1d(orbit, ch, path_limb)
-            orbit += 1
+            orbit += 5
         except FileNotFoundError:
             orbit += 1
             print('invert the next orbit')
