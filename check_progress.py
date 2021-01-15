@@ -17,6 +17,9 @@ for year in ref_year:
         ref_orbit.append(next(t.orbit.item() for t in orbits_rough.time if t.dt.year==year))
     except:
         break
+    
+check_orbit = 8181
+check_year = ref_year[np.array(ref_orbit).searchsorted(check_orbit)-1]
 
 # %% 
 # %% Check downloaded limb files

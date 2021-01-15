@@ -55,7 +55,7 @@ def invert_1d(orbit, ch, path, save_file=True, im_lst=None):
     A_peak = []
     A_peak_height = []
     for i in range(len(im_lst)):
-        print('{}/{}/{}'.format(i, len(im_lst), orbit))
+        # print('{}/{}/{}'.format(i, len(im_lst), orbit))
         isel_args = dict(time=im_lst[i])
         h = tan_alt.isel(**isel_args).where(pixel_map.isel(**isel_args), drop=True)
         if len(h)<1:
@@ -96,7 +96,10 @@ def invert_1d(orbit, ch, path, save_file=True, im_lst=None):
             })
         if save_file:
             result_1d.to_netcdf('~/Documents/osiris_database/iris_oh/iri_oh_ver_{}.nc'.format(orbit_num))
-    return result_1d
+        return result_1d
+    # else:
+        # print('orbit {} does not have sufficient images that satisfy criterion'.format(orbit))
+        # return
 
 #%%
 if __name__ == '__main__':
@@ -115,7 +118,7 @@ if __name__ == '__main__':
             else:
                 print('process orbit {}'.format(orbit))
                 _ = invert_1d(orbit, ch, path_limb)
-            orbit += 5
+            orbit += 20
         except FileNotFoundError:
             orbit += 1
             print('invert the next orbit')
