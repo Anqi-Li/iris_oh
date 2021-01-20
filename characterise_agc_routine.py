@@ -25,14 +25,15 @@ def characterise_layer(da_ver_profile, a0=5e3, mean0=85e3, sigma0=5e3):
     x = y.z
     popt, pcov = curve_fit(gauss, x, y, 
                     p0=[a0, mean0, sigma0], 
-                    # bounds=([0, 70e3, 0], [1e4, 100e3, 40e3])
+                    bounds=([0, 70e3, 0], [1e5, 100e3, 40e3]) #some reasonable ranges for the airglow characteristics
                     )
     
     amplitude, peak_height, thickness_FWHM = popt
     return amplitude, peak_height, thickness_FWHM
 
-def process_file(f, save_file=True):
-    result_1d = xr.open_dataset(f)
+def process_file(ver_file, save_file=False, agc_file_pattern=None):
+    result_1d = xr.open_dataset(ver_file)
+    result_1d.close()
     ver_data = result_1d.ver#.where(result_1d.A_diag>0.8) #masking might cause issue in fitting!
 
     time_save = []
@@ -50,24 +51,30 @@ def process_file(f, save_file=True):
             pass
     if len(time_save) > 0:
         time_save = xr.concat(time_save, dim='time')
-        ver_character = xr.Dataset({
+        agc_character = xr.Dataset({
             'time': (['time'], time_save),
             'longitude': (['time'], result_1d.longitude.sel(time=time_save)),
             'latitude': (['time'], result_1d.latitude.sel(time=time_save)),
             'amplitude': (['time'], amplitude, dict(units=result_1d.ver.units)),
             'peak_height': (['time'], peak_height, dict(units=result_1d.z.units)),
             'thickness': (['time'], thickness, dict(units=result_1d.z.units)),
+            'orbit': result_1d.orbit,
+            'channel': result_1d.channel,
         })
         if save_file:
-            ver_character.to_netcdf('/home/anqil/Documents/osiris_database/iris_oh/airglow_character/agc_{}.nc'.format(
-                str(result_1d.orbit.item()).zfill(6)))
-        return ver_character
+            print('saving file')
+            if agc_file_pattern == None:
+                agc_file_pattern = '/home/anqil/Documents/osiris_database/iris_oh/airglow_character/agc_{}.nc'
+            else:
+                agc_character.to_netcdf(agc_file_pattern.format(str(result_1d.orbit.item()).zfill(6)))
+        return agc_character
 
 #%%
 if __name__ == '__main__':
     path = '/home/anqil/Documents/osiris_database/iris_oh/'
     ver_file_lst = glob.glob(path + '*nc')
-    agc_file_lst = glob.glob(path + 'airglow_character/agc_*.nc')
+    agc_filename_pattern = 'airglow_character/agc_{}.nc'
+    agc_file_lst = glob.glob(path + agc_filename_pattern.format('*'))
     for f in ver_file_lst:
         orbit_num = f[-9:-3]
         if orbit_num in [k[-9:-3] for k in agc_file_lst]:
@@ -75,7 +82,7 @@ if __name__ == '__main__':
             pass
         else:
             print('process orbit {}'.format(orbit_num))
-            process_file(f)
+            process_file(f, save_file=True, agc_file_pattern=path+agc_filename_pattern)
 
 
 # %%

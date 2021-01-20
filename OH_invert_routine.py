@@ -9,7 +9,7 @@ from geometry_functions import pathl1d_iris
 import glob
 
 #%%
-def invert_1d(orbit, ch, path, save_file=True, im_lst=None):
+def invert_1d(orbit, ch, path, save_file=False, ver_file_pattern=None, im_lst=None):
     orbit_num = str(orbit).zfill(6)
     filename = 'ir_slc_{}_ch{}.nc'.format(orbit_num, ch)
     ir = xr.open_dataset(path+filename).sel(pixel=slice(21,128))
@@ -95,7 +95,10 @@ def invert_1d(orbit, ch, path, save_file=True, im_lst=None):
             'channel': ir.channel,
             })
         if save_file:
-            result_1d.to_netcdf('~/Documents/osiris_database/iris_oh/iri_oh_ver_{}.nc'.format(orbit_num))
+            if ver_file_pattern == None:
+                result_1d.to_netcdf('~/Documents/osiris_database/iris_oh/iri_oh_ver_{}.nc'.format(orbit_num))
+            else:
+                result_1d.to_netcdf(ver_file_pattern.format(orbit_num))
         return result_1d
     # else:
         # print('orbit {} does not have sufficient images that satisfy criterion'.format(orbit))
@@ -104,21 +107,23 @@ def invert_1d(orbit, ch, path, save_file=True, im_lst=None):
 #%%
 if __name__ == '__main__':
     ch = 1
-    # path_limb = '~/Documents/osiris_database/globus/StrayLightCorrected/Channel{}/'.format(ch)
-    path_limb = '~/Documents/sshfs/oso_extra_storage/StrayLightCorrected/Channel{}/'.format(ch)
+    path_limb = '/home/anqil/Documents/sshfs/oso_extra_storage/StrayLightCorrected/Channel{}/'.format(ch)
     orbit = 3713
     orbit_error = []
-    path_ver = '/home/anqil/Documents/osiris_database/iris_oh/'
-    ver_file_lst = glob.glob(path_ver + '*nc')
-    while orbit < 27333:
+    # path_ver = '/home/anqil/Documents/osiris_database/iris_oh/'
+    path_ver = '/home/anqil/Documents/sshfs/oso_extra_storage/VER/oh/'
+    ver_filename_pattern = 'iri_oh_ver_{}.nc'
+    ver_file_lst = glob.glob(path_ver + ver_filename_pattern.format('*'))
+    while orbit < 90000:
         try:
-            if path_ver+'iri_oh_ver_{}.nc'.format(str(orbit).zfill(6)) in ver_file_lst:
+            if path_ver+ver_filename_pattern.format(str(orbit).zfill(6)) in ver_file_lst:
                 print('orbit {} already exist'.format(orbit))
                 pass
             else:
                 print('process orbit {}'.format(orbit))
-                _ = invert_1d(orbit, ch, path_limb)
-            orbit += 20
+                _ = invert_1d(orbit, ch, path_limb, save_file=True, 
+                    ver_file_pattern=path_ver+ver_filename_pattern)
+            orbit += 10
         except FileNotFoundError:
             orbit += 1
             print('invert the next orbit')

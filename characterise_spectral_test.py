@@ -13,25 +13,16 @@ orbit_num = str(orbit).zfill(6)
 path = '/home/anqil/Documents/osiris_database/iris_oh/'
 filename = 'iri_oh_ver_{}.nc'
 ds = xr.open_dataset(path+filename.format(orbit_num))
+ds.close()
 ds = ds.update({'tp' : (['time'],
         (ds.time - ds.time[0])/(ds.time[-1]-ds.time[0]))})
 #%% open airglow character (agc) file
 filename = '/airglow_character/agc_{}.nc'
 ds_agc = xr.open_dataset(path+filename.format(orbit_num))
+ds_agc.close()
 ds = ds.update(ds_agc).swap_dims({'time': 'tp'})
 
 ver_data = ds.ver.where(ds.mr>0.8)
-
-#%%
-fig, ax = plt.subplots(3,1, sharex=True)
-plot_args = dict(x='tp')
-ds.amplitude.plot(ax=ax[0], **plot_args)
-ds.peak_height.plot(ax=ax[1], **plot_args)
-ds.thickness.plot(ax=ax[2], **plot_args)
-
-ax[0].set(title='Amplitude', xlabel='')
-ax[1].set(title='Peak height', xlabel='')
-ax[2].set(title='Thickness', xlabel='Ratio into the night')
 
 #%% reconstruct the gaussian function
 from characterise_ver_routine import gauss

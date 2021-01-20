@@ -2,206 +2,138 @@
 import numpy as np
 import xarray as xr
 import matplotlib.pyplot as plt
-# from matplotlib.colors import LogNorm
-# from scipy.interpolate import interp1d
 from xhistogram.xarray import histogram
 import cartopy.crs as ccrs
 import glob 
+import pandas as pd
 
-#%% spectral character
-path = '/home/anqil/Documents/osiris_database/iris_oh/'
-filelist = glob.glob(path+'spectral_character/sp_*.nc')
-ds = xr.open_mfdataset(filelist).set_coords(['longitude', 'latitude'])
-# ds = ds.where(ds.time.dt.dayofyear==335,drop=True)
-# fig, ax = plt.subplots(1,1,
-#         # subplot_kw=dict(projection=ccrs.PlateCarree(central_longitude=180)) 
-#         subplot_kw=dict(projection=ccrs.Orthographic(-80, 35))
-#                     )
-# ax.plot(ds.longitude, ds.latitude, ls='', marker='*', transform=ccrs.PlateCarree())
-# ax.coastlines()
-# ax.set_global()
-# plt.suptitle('year = 2002')
-#%% groupby time lat
-dlat = 20
-latitude_bins = np.arange(-90,90+dlat,dlat)
-latitude_labels = latitude_bins[1:]-dlat/2
+#%% open statistics files -- time_lat
+path = '/home/anqil/Documents/osiris_database/iris_oh/statistics/'
+filename = 'archive/time_lat_{}.nc'
+def set_idx(ds, year):
+    idx = [np.datetime64('{}-{}'.format(year, str(month).zfill(2))) for month in ds.time_bins.values] 
+    ds = ds.assign_coords(time_bins=idx)
+    return ds
 
-time_bins, mean, count = [], [], []
-for s, data in ds.max_pw_freq.groupby(ds.time.dt.month):
-    time_bins.append(s)
-    mean.append(data.groupby_bins(data.latitude, 
-        bins=latitude_bins, labels=latitude_labels).median('time', keep_attrs=True))
-    count.append(data.groupby_bins(data.latitude, 
-        bins=latitude_bins, labels=latitude_labels).count('time'))
-mean = xr.concat(mean, dim='time_bins').assign_coords(time_bins=time_bins).sortby('time_bins')
-count = xr.concat(count, dim='time_bins').assign_coords(time_bins=time_bins).sortby('time_bins')
+mds = []
+for year in range(2001,2011):
+    with xr.open_dataset(path+filename.format(year)) as ds:
+        mds.append(set_idx(ds, year))
+# for file in glob.glob(path+filename.format('????')):
+#     year = file[-7:-3]
+#     with xr.open_dataset(file) as ds:
+#         mds.append(set_idx(ds, year))
+mds = xr.merge(mds)
 
-#%% groupby time lat lon
-dlat = 20
-latitude_bins = np.arange(-90,90+dlat,dlat)
-latitude_labels = latitude_bins[1:]-dlat/2
+#% some adjustments on the longterm dataset
+mds = mds.rename(dict(latitude_bins='Latitude', time_bins='Time'))
+mds.Latitude.attrs['units'] = 'deg N'
 
-dlon = 20
-longitude_bins = np.arange(0,360+dlon, dlon)
-longitude_labels = longitude_bins[1:] - dlon/2
+data_vars_lst = 'max_pw_freq max_pw amplitude peak_height thickness'.split()
+data_vars_mul = [1e3, 1, 1, 1e-3, 1e-3]
+data_vars_units = 'km-1 ? pho_cm-1_s-1 km km'.split()
+for i in range(len(data_vars_lst)):
+    for s in 'mean_{} std_{}'.split():
+        mds[s.format(data_vars_lst[i])] *= data_vars_mul[i]
+        mds[s.format(data_vars_lst[i])].attrs['units'] = data_vars_units[i] 
 
-time_bins, mean, count = [], [], []
-for t, t_data in ds.max_pw_freq.groupby(ds.time.dt.season):
-    time_bins.append(t)
-    longitude_lab, lat_lon_mean, lat_lon_count = [], [], []
-    for lon, lon_t_data in t_data.groupby_bins(t_data.longitude, bins=longitude_bins, labels=longitude_labels):
-        longitude_lab.append(lon)
-        print(t, lon, len(lon_t_data.time))
-        lat_lon_mean.append(lon_t_data.groupby_bins(lon_t_data.latitude, bins=latitude_bins, labels=latitude_labels).median('time', keep_attrs=True))
-        lat_lon_count.append(lon_t_data.groupby_bins(lon_t_data.latitude, bins=latitude_bins, labels=latitude_labels).count('time', keep_attrs=True))
-        
-    mean.append(xr.concat(lat_lon_mean, dim='longitude_bins').assign_coords(longitude_bins=longitude_lab).sortby('longitude_bins'))
-    count.append(xr.concat(lat_lon_count, dim='longitude_bins').assign_coords(longitude_bins=longitude_lab).sortby('longitude_bins'))
-mean = xr.concat(mean, dim='time_bins').assign_coords(time_bins=time_bins).sortby('time_bins')
-count = xr.concat(count, dim='time_bins').assign_coords(time_bins=time_bins).sortby('time_bins')
+#%% Longterm contourf plot
+fig, ax = plt.subplots(len(data_vars_lst)+1,1, figsize=(10,15), sharex=True, sharey=True)
+contourf_args = dict(x='Time', robust=True)
+for i, var in enumerate(['std_{}'.format(v) for v in data_vars_lst]):
+    mds[var].plot.contourf(ax=ax[i], **contourf_args)
+[ax[i].set(xlabel='') for i in range(5)]
+mds.count_amplitude.plot.contourf(ax=ax[-1], vmax=8e3, **contourf_args)
+ax[0].set(title='STD')
+ax[-1].set(title='Sample Count')
 
-#%%
-fig, ax = plt.subplots(2,4, sharex=True, sharey=True)
+#%% open statistics files -- time_lat_lon
+filename = 'archive/time_lat_lon_{}.nc'
+def set_midx(ds):
+    midx = pd.MultiIndex.from_product(
+        [[year], ds.time_bins.values], names=('year', 'season'))
+    ds = ds.assign_coords(time_bins=midx)
+    return ds
 
+mds = []
+for year in range(2001,2011):
+    with xr.open_dataset(path+filename.format(year)) as ds:
+        mds.append(set_midx(ds))
+mds = xr.merge(mds)
+#% final adjustment on the longterm dataset
+mds = mds.rename(dict(latitude_bins='Latitude', longitude_bins='Longitude', time_bins='Time'))
+mds.Latitude.attrs['units'] = 'deg N'
+mds.Longitude.attrs['units'] = 'deg E'
 
+data_vars_lst = 'max_pw_freq max_pw amplitude peak_height thickness'.split()
+data_vars_mul = [1e3, 1, 1, 1e-3, 1e-3]
+data_vars_units = 'km-1 ? pho_cm-1_s-1 km km'.split()
+for i in range(len(data_vars_lst)):
+    for s in 'mean_{} std_{}'.split():
+        mds[s.format(data_vars_lst[i])] *= data_vars_mul[i]
+        mds[s.format(data_vars_lst[i])].attrs['units'] = data_vars_units[i] 
 
+# mds['max_pw_freq'] = mds.max_pw_freq*1e3
+# mds.max_pw_freq.attrs['units'] = '  km-1'
+# mds.max_pw.attrs['units'] = '?'
+# mds.amplitude.attrs['units'] = 'photons cm-1 s-1'
+# mds['peak_height'] = mds.peak_height*1e-3
+# mds.peak_height.attrs['units'] = 'km'
+# mds['thickness'] = mds.thickness*1e-3
+# mds.thickness.attrs['units'] = 'km'
 
-# %% gaussian character
-path = '/home/anqil/Documents/osiris_database/iris_oh/'
-agc_file_lst = glob.glob(path + 'airglow_character/agc_*.nc')
-ds = xr.open_mfdataset(agc_file_lst).set_coords(['longitude', 'latitude'])
-ds = ds.where(ds.time.dt.year==2002, drop=True)
+mds = mds.unstack('Time')
 
-# %% groupby time, latitude
-dlat = 20
-latitude_bins = np.arange(-90,90+dlat,dlat)
-latitude_labels = latitude_bins[1:]-dlat/2
-
-time_bins, mean, count = [], [], []
-for s, data in ds.groupby(ds.time.dt.month):
-    time_bins.append(s)
-    mean.append(data.groupby_bins(data.latitude, 
-        bins=latitude_bins, labels=latitude_labels).median('time', keep_attrs=True))
-    count.append(data.groupby_bins(data.latitude, 
-        bins=latitude_bins, labels=latitude_labels).count('time'))
-mean = xr.concat(mean, dim='time_bins').assign_coords(time_bins=time_bins).sortby('time_bins')
-count = xr.concat(count, dim='time_bins').assign_coords(time_bins=time_bins).sortby('time_bins')
-
-# mean = mean.assign({'season': mean.time_bins}).assign_coords(time_bins=np.arange(4))
-
-fig, ax = plt.subplots(4,1, figsize=(6,8), sharex=True)
-plot_args = dict(x='time_bins', y='latitude_bins')
-parms = 'amplitude peak_height thickness'.split()
-for i, par in enumerate(parms):
-    mean[par].plot.contourf(ax=ax[i], **plot_args)
-    ax[i].set(title=par, xlabel='')
-    # ax[i].get_legend().set(bbox_to_anchor=(1 , 1)) 
-
-count[par].rename('').plot.contourf(ax=ax[-1], cmap='viridis', **plot_args)
-ax[-1].set(title='sample count', xlabel='Month')
-
-plt.suptitle('year = 2002')
-
-# %% groupby latitude, longtiude
-dlat = 20
-latitude_bins = np.arange(-90,90+dlat,dlat)
-latitude_labels = latitude_bins[1:]-dlat/2
-
-dlon = 20
-longitude_bins = np.arange(0,360+dlon, dlon)
-longitude_labels = longitude_bins[1:] - dlon/2
-longitude_lab, mean, count = [], [], []
-for s, data in ds.groupby_bins(ds.longitude, bins=longitude_bins, labels=longitude_labels):
-    longitude_lab.append(s)
-    mean.append(data.groupby_bins(data.latitude, 
-        bins=latitude_bins, labels=latitude_labels).median('time', keep_attrs=True))
-    count.append(data.groupby_bins(data.latitude, 
-        bins=latitude_bins, labels=latitude_labels).count('time'))
-mean = xr.concat(mean, dim='longitude_bins').assign_coords(longitude_bins=longitude_lab).sortby('longitude_bins')
-count = xr.concat(count, dim='longitude_bins').assign_coords(longitude_bins=longitude_lab).sortby('longitude_bins')
-
-#%% cartopy plot
-if mean.longitude_bins[-1]<360:
-    mean = xr.auto_combine([mean, 
-        mean.isel(longitude_bins=0).assign_coords(
-            longitude_bins=360+dlon/2)])
-    count = xr.auto_combine([count, 
-        count.isel(longitude_bins=0).assign_coords(
-            longitude_bins=360+dlon/2)])
-
-fig, ax = plt.subplots(4,1, figsize=(5,8), sharex=True,
-        subplot_kw=dict(projection=ccrs.PlateCarree(central_longitude=180)) #ccrs.Orthographic(-80, 35)
-                    )
-plot_args = dict(x='longitude_bins', y='latitude_bins', 
-    transform=ccrs.PlateCarree(),
+#%% cartography plot
+contourf_args = dict(y='Latitude', x='Longitude', col='season', row='year', robust=True,
+    subplot_kws=dict(projection=ccrs.PlateCarree(central_longitude=180)),
+    cbar_kwargs=dict()
     )
-parms = 'amplitude peak_height thickness'.split()
-for i, par in enumerate(parms):
-    mean[par].plot.contourf(ax=ax[i], **plot_args)
-    ax[i].set(title=par, xlabel='')
-    ax[i].coastlines()
-    ax[i].set_global()
-# ax[-1].set(xlabel='longitude_bins')
-
-count[par].rename('').plot.contourf(ax=ax[-1], cmap='viridis', **plot_args)
-ax[-1].set(title='sample count', xlabel='Month')
-ax[-1].coastlines()
-ax[-1].set_global()
-plt.suptitle('year = 2002')
-
-# %% groupby time, lat and lon
-dlat = 20
-latitude_bins = np.arange(-90,90+dlat,dlat)
-latitude_labels = latitude_bins[1:]-dlat/2
-
-dlon = 20
-longitude_bins = np.arange(0,360+dlon, dlon)
-longitude_labels = longitude_bins[1:] - dlon/2
-
-time_bins, mean, count = [], [], []
-for t, t_data in ds.groupby(ds.time.dt.season):
-    time_bins.append(t)
-    longitude_lab, lat_lon_mean, lat_lon_count = [], [], []
-    for lon, lon_t_data in t_data.groupby_bins(t_data.longitude, bins=longitude_bins, labels=longitude_labels):
-        longitude_lab.append(lon)
-        print(t, lon, len(lon_t_data.time))
-        lat_lon_mean.append(lon_t_data.groupby_bins(lon_t_data.latitude, bins=latitude_bins, labels=latitude_labels).median('time', keep_attrs=True))
-        # lat_lon_count.append(lon_t_data.groupby_bins(lon_t_data.latitude, bins=latitude_bins, labels=latitude_labels).count('time', keep_attrs=True))
-        
-    mean.append(xr.concat(lat_lon_mean, dim='longitude_bins').assign_coords(longitude_bins=longitude_lab).sortby('longitude_bins'))
-#     count.append(xr.concat(lat_lon_count, dim='longitude_bins').assign_coords(longitude_bins=longitude_lab).sortby('longitude_bins'))
-mean = xr.concat(mean, dim='time_bins').assign_coords(time_bins=time_bins).sortby('time_bins')
-# count = xr.concat(count, dim='time_bins').assign_coords(time_bins=time_bins).sortby('time_bins')
-
-#%% cartopy plot
-# interpolation in the end array of longitude_bins
-if mean.longitude_bins[-1]<360:
-    mean = xr.auto_combine([mean, 
-        mean.isel(longitude_bins=0).assign_coords(
-            longitude_bins=360+dlon/2)])
-    # count = xr.auto_combine([count, 
-    #     count.isel(longitude_bins=0).assign_coords(
-    #         longitude_bins=360+dlon/2)])
-
-fig, ax = plt.subplots(3,4, figsize=(10,5), sharex=True,
-        subplot_kw=dict(projection=ccrs.PlateCarree(central_longitude=180)) #ccrs.Orthographic(-80, 35)
-                    )
-plot_args = dict(x='longitude_bins', y='latitude_bins', 
-                transform=ccrs.PlateCarree(),
-                add_legend=False,
-                add_colorbar=False
-                )
-parms = 'amplitude peak_height thickness'.split()
-parm_lim = [(0,7e3), (81e3, 88e3), (0, 48e2)]
-parm_lim = [dict(vmin=min, vmax=max) for min, max in parm_lim]
-for i, par in enumerate(parms):
-    for ti in range(len(mean.time_bins)):
-        mean.isel(time_bins=ti)[par].plot.contourf(ax=ax[i, ti], **parm_lim[i], **plot_args)
-        ax[i, ti].set(title=par+'\n'+mean.time_bins[ti].item(), xlabel='')
-        ax[i, ti].coastlines()
-        ax[i, ti].set_global()
+time_seq = ['DJF', 'MAM', 'JJA', 'SON']
+year = [2002]
+data_vars_lst = 'max_pw_freq max_pw amplitude peak_height thickness'.split()
+for var in ['mean_{}'.format(v) for v in data_vars_lst]:
+    fig = plt.figure(figsize=(10,5))
+    p = mds.sel(year=year).reindex(season=time_seq)[var].plot.contourf(**contourf_args)
+    for ax in p.axes.flat:
+        ax.coastlines()
+        ax.set_global()
+    plt.suptitle(var)
+    plt.show()
 
 #%%
+var = 'sp_sample_count'#'count_amplitude'
+fig = plt.figure(figsize=(10,5))
+p = mds.sel(year=year).reindex(season=time_seq)[var].plot.contourf(**contourf_args)
+for ax in p.axes.flat:
+    ax.coastlines()
+    ax.set_global()
+plt.suptitle(var)
+plt.show()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

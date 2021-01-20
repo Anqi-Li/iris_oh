@@ -43,20 +43,26 @@ def characterise_wave(ds, window_size=20, min_window_size=10):
     return ds_sp
 
 
-def process_file(ver_f, save_file=True):
+def process_file(ver_f, agc_f=None, save_file=False, sp_file_pattern=None):
     orbit_num = ver_f[-9:-3]
     # open VER file
     ds = xr.open_dataset(ver_f)
-
+    ds.close()
     window_size = 20
     min_window_size = 10
     if len(ds.time) <= min_window_size:
+        print('orbit {} has less than {} images (min_window_size)'.format(orbit_num, min_window_size))
         return
+
     else:
         #open airglow character (agc) file
-        path = '/home/anqil/Documents/osiris_database/iris_oh/'
-        filename = '/airglow_character/agc_{}.nc'
-        ds_agc = xr.open_dataset(path+filename.format(orbit_num))
+        if agc_f == None:
+            path = '/home/anqil/Documents/osiris_database/iris_oh/'
+            filename = '/airglow_character/agc_{}.nc'
+            ds_agc = xr.open_dataset(path+filename.format(orbit_num))
+        else:
+            ds_agc = xr.open_dataset(agc_f)
+        ds_agc.close()
         ds = ds.update(ds_agc)
 
         # spectral FFT
@@ -66,16 +72,19 @@ def process_file(ver_f, save_file=True):
         max_pw_freq, max_pw = find_spectral_max(ds_sp.sp)
 
         ds_save = ds_sp.update({'longitude': ds.longitude,
-                                    'latitude': ds.latitude,
-                                    'orbit': ds.orbit,
-                                    'channel': ds.channel,
-                                    'max_pw': max_pw,
-                                    'max_pw_freq': max_pw_freq
-                                    })
+                                'latitude': ds.latitude,
+                                'orbit': ds.orbit,
+                                'channel': ds.channel,
+                                'max_pw': max_pw,
+                                'max_pw_freq': max_pw_freq,
+                                })
         # save data
         if save_file:
-            ds_save.to_netcdf(path + 'spectral_character/sp_{}.nc'.format(orbit_num))
-        
+            print('saving file')
+            if sp_file_pattern == None:
+                ds_save.to_netcdf(path + 'spectral_character/sp_{}.nc'.format(orbit_num))
+            else:
+                ds_save.to_netcdf(sp_file_pattern.format(orbit_num))
         return ds_save
             
 
@@ -85,10 +94,12 @@ def process_orbit(orbit_num):
     path = '/home/anqil/Documents/osiris_database/iris_oh/'
     filename = 'iri_oh_ver_{}.nc'
     ds = xr.open_dataset(path+filename.format(orbit_num))
+    ds.close()
 
     # open airglow character (agc) file
     filename = 'airglow_character/agc_{}.nc'
     ds_agc = xr.open_dataset(path+filename.format(orbit_num))
+    ds_agc.close()
     ds = ds.update(ds_agc)
 
     # spectral FFT
