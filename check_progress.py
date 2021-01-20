@@ -50,7 +50,7 @@ orbits_sp = [int(s[-9:-3]) for s in files_sp]
 # % visualise
 # orbit_bins = np.linspace(3e3, 4e4)
 orbit_bins = ref_orbit
-plt.hist(orbits_downloaded, bins=orbit_bins, label='Downloaded to OSO')
+# plt.hist(orbits_downloaded, bins=orbit_bins, label='Downloaded to OSO')
 plt.hist(orbits_ver, bins=orbit_bins, label='Inverted VER')
 plt.hist(orbits_agc, bins=orbit_bins, label='Layer character')
 plt.hist(orbits_sp, bins=orbit_bins, label='Spectral character')
