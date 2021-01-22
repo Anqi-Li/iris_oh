@@ -1,3 +1,10 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created in Jan 2021
+
+@author: anqil
+"""
 # %%
 from characterise_agc_routine import process_file as process_agc
 from characterise_spectral_routine import process_file as process_sp
@@ -38,7 +45,7 @@ if __name__ == '__main__':
             process_sp(ver_file, agc_f=character_path+agc_filename_pattern.format(orbit_num), 
                 save_file=True, sp_file_pattern=character_path+sp_filename_pattern)
 
-    with Pool(processes=4) as p:
+    with Pool(processes=6) as p:
         p.map(fun, ver_file_lst)
 
 #%%

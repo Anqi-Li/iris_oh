@@ -80,7 +80,7 @@ def process_file(ver_f, agc_f=None, save_file=False, sp_file_pattern=None):
                                 })
         # save data
         if save_file:
-            print('saving file')
+            print('saving sp file {}'.format(orbit_num))
             if sp_file_pattern == None:
                 ds_save.to_netcdf(path + 'spectral_character/sp_{}.nc'.format(orbit_num))
             else:

@@ -62,11 +62,12 @@ def process_file(ver_file, save_file=False, agc_file_pattern=None):
             'channel': result_1d.channel,
         })
         if save_file:
-            print('saving file')
+            orbit_num = str(result_1d.orbit.item()).zfill(6)
+            print('saving agc file {}'.format(orbit_num))
             if agc_file_pattern == None:
                 agc_file_pattern = '/home/anqil/Documents/osiris_database/iris_oh/airglow_character/agc_{}.nc'
             else:
-                agc_character.to_netcdf(agc_file_pattern.format(str(result_1d.orbit.item()).zfill(6)))
+                agc_character.to_netcdf(agc_file_pattern.format(orbit_num))
         return agc_character
 
 #%%
