@@ -102,7 +102,7 @@ if __name__ == '__main__':
     agc_filelist = glob.glob(path + 'airglow_character/archive_bounded/agc_*.nc')
 
     #%% select relevant data for analysis (year? dayofyear?)
-    for year in range(2001, 2019):
+    for year in range(2011, 2019):
         print('load year {} '.format(year))
         # sp_filelist_year = [f for f in sp_filelist if int(f[-9:-3])<orbit_year.sel(year=year+1).orbit.item() and int(f[-9:-3])>orbit_year.sel(year=year).orbit.item()]
         # sp_ds = xr.open_mfdataset(sp_filelist_year).set_coords(['longitude', 'latitude'])

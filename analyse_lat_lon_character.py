@@ -9,14 +9,14 @@ import pandas as pd
 
 #%% open statistics files -- time_lat
 path = '/home/anqil/Documents/osiris_database/iris_oh/statistics/'
-filename = 'archive/time_lat_{}.nc'
+filename = 'bounded/bounded_time_lat_{}.nc'
 def set_idx(ds, year):
     idx = [np.datetime64('{}-{}'.format(year, str(month).zfill(2))) for month in ds.time_bins.values] 
     ds = ds.assign_coords(time_bins=idx)
     return ds
 
 mds = []
-for year in range(2001,2011):
+for year in range(2001,2018):
     with xr.open_dataset(path+filename.format(year)) as ds:
         mds.append(set_idx(ds, year))
 # for file in glob.glob(path+filename.format('????')):
@@ -29,20 +29,20 @@ mds = xr.merge(mds)
 mds = mds.rename(dict(latitude_bins='Latitude', time_bins='Time'))
 mds.Latitude.attrs['units'] = 'deg N'
 
-data_vars_lst = 'max_pw_freq max_pw amplitude peak_height thickness'.split()
-data_vars_mul = [1e3, 1, 1, 1e-3, 1e-3]
-data_vars_units = 'km-1 ? pho_cm-1_s-1 km km'.split()
+data_vars_lst = 'amplitude peak_height thickness'.split()
+data_vars_mul = [1, 1e-3, 1e-3]
+data_vars_units = 'pho_cm-1_s-1 km km'.split()
 for i in range(len(data_vars_lst)):
     for s in 'mean_{} std_{}'.split():
         mds[s.format(data_vars_lst[i])] *= data_vars_mul[i]
         mds[s.format(data_vars_lst[i])].attrs['units'] = data_vars_units[i] 
 
 #%% Longterm contourf plot
-fig, ax = plt.subplots(len(data_vars_lst)+1,1, figsize=(10,15), sharex=True, sharey=True)
+fig, ax = plt.subplots(len(data_vars_lst)+1,1, figsize=(15,10), sharex=True, sharey=True)
 contourf_args = dict(x='Time', robust=True)
 for i, var in enumerate(['std_{}'.format(v) for v in data_vars_lst]):
     mds[var].plot.contourf(ax=ax[i], **contourf_args)
-[ax[i].set(xlabel='') for i in range(5)]
+[ax[i].set(xlabel='') for i in range(len(data_vars_lst))]
 mds.count_amplitude.plot.contourf(ax=ax[-1], vmax=8e3, **contourf_args)
 ax[0].set(title='STD')
 ax[-1].set(title='Sample Count')

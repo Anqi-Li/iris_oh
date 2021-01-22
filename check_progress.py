@@ -43,17 +43,19 @@ files_agc = [f for f in listdir(path_agc) if 'nc' in f]
 orbits_agc = [int(s[-9:-3]) for s in files_agc]
 
 # % Check spectral character files
-path_sp = path_char + 'spectral_character/' + 'archive/'
-files_sp = [f for f in listdir(path_sp) if 'nc' in f]
-orbits_sp = [int(s[-9:-3]) for s in files_sp]
+# path_sp = path_char + 'spectral_character/' + 'archive/'
+# files_sp = [f for f in listdir(path_sp) if 'nc' in f]
+# orbits_sp = [int(s[-9:-3]) for s in files_sp]
 
 # % visualise
 # orbit_bins = np.linspace(3e3, 4e4)
 orbit_bins = ref_orbit
-plt.hist(orbits_downloaded, bins=orbit_bins, label='Downloaded to OSO')
-plt.hist(orbits_ver, bins=orbit_bins, label='Inverted VER')
-plt.hist(orbits_agc, bins=orbit_bins, label='Layer character')
+x0,*_ = plt.hist(orbits_downloaded, bins=orbit_bins, label='Downloaded to OSO')
+x1,*_ = plt.hist(orbits_ver, bins=orbit_bins, label='Inverted VER')
+x2,*_ = plt.hist(orbits_agc, bins=orbit_bins, label='Layer character')
 # plt.hist(orbits_sp, bins=orbit_bins, label='Spectral character')
+
+plt.step(orbit_bins[:-1], x0*0.2, label='20% of downloaded', where='post')
 plt.legend()
 plt.xticks(ref_orbit, ref_year.values, rotation=40)
 plt.ylabel('Num. of orbits processed')
