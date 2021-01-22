@@ -1,9 +1,6 @@
 #%%
 import numpy as np
 import xarray as xr
-# import matplotlib.pyplot as plt
-# from matplotlib.colors import LogNorm
-# from scipy.interpolate import interp1d
 from oem_functions import linear_oem
 from geometry_functions import pathl1d_iris
 import glob

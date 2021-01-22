@@ -22,10 +22,23 @@ isel_args = dict(time=0)
 # ds.isel(**isel_args).ver.plot(y='z')
 
 #%% characterise the airglow layer by a gaussian fit
-from characterise_agc_routine import characterise_layer, gauss
+from characterise_agc_routine import gauss #characterise_layer, gauss
+from scipy.optimize import curve_fit
 
 da_ver_profile = ds.ver.where(ds.A_diag>=0).isel(**isel_args)
-popt = characterise_layer(da_ver_profile)
+
+def characterise_layer(da_ver_profile, a0=5e3, mean0=85e3, sigma0=5e3):
+    y = da_ver_profile.dropna(dim='z')
+    x = y.z
+    popt, pcov = curve_fit(gauss, x, y, 
+                    p0=[a0, mean0, sigma0], 
+                    # bounds=([0, 70e3, 0], [1e5, 100e3, 40e3]), #some reasonable ranges for the airglow characteristics
+                    )
+    
+    amplitude, peak_height, thickness_FWHM = popt
+    return amplitude, peak_height, thickness_FWHM, np.diag(pcov)
+
+*popt, pcov = characterise_layer(da_ver_profile)
 
 ds.ver.isel(**isel_args).plot(y='z', label='VER data')
 ds.z.pipe(gauss, *popt).plot(y='z', label='Gaussian fit: \n a=%1.0f, x0=%1.0f, sigma=%1.0f' % tuple(popt))

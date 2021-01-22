@@ -38,12 +38,12 @@ orbits_ver = [int(s[-9:-3]) for s in files_ver]
 
 path_char = '/home/anqil/Documents/osiris_database/iris_oh/'
 # % Check airglow character files
-path_agc = path_char + 'airglow_character/'# + 'archive/'
+path_agc = path_char + 'airglow_character/' #+ 'archive/'
 files_agc = [f for f in listdir(path_agc) if 'nc' in f]
 orbits_agc = [int(s[-9:-3]) for s in files_agc]
 
 # % Check spectral character files
-path_sp = path_char + 'spectral_character/'# + 'archive/'
+path_sp = path_char + 'spectral_character/' + 'archive/'
 files_sp = [f for f in listdir(path_sp) if 'nc' in f]
 orbits_sp = [int(s[-9:-3]) for s in files_sp]
 
@@ -53,7 +53,7 @@ orbit_bins = ref_orbit
 plt.hist(orbits_downloaded, bins=orbit_bins, label='Downloaded to OSO')
 plt.hist(orbits_ver, bins=orbit_bins, label='Inverted VER')
 plt.hist(orbits_agc, bins=orbit_bins, label='Layer character')
-plt.hist(orbits_sp, bins=orbit_bins, label='Spectral character')
+# plt.hist(orbits_sp, bins=orbit_bins, label='Spectral character')
 plt.legend()
 plt.xticks(ref_orbit, ref_year.values, rotation=40)
 plt.ylabel('Num. of orbits processed')
