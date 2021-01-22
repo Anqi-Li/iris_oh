@@ -98,53 +98,55 @@ if __name__ == '__main__':
     
     #%% character files
     path = '/home/anqil/Documents/osiris_database/iris_oh/'
-    sp_filelist = glob.glob(path+'spectral_character/archive/sp_*.nc')
-    agc_filelist = glob.glob(path + 'airglow_character/archive/agc_*.nc')
+    # sp_filelist = glob.glob(path+'spectral_character/archive/sp_*.nc')
+    agc_filelist = glob.glob(path + 'airglow_character/archive_bounded/agc_*.nc')
 
     #%% select relevant data for analysis (year? dayofyear?)
     for year in range(2001, 2019):
         print('load year {} '.format(year))
-        sp_filelist_year = [f for f in sp_filelist if int(f[-9:-3])<orbit_year.sel(year=year+1).orbit.item() and int(f[-9:-3])>orbit_year.sel(year=year).orbit.item()]
-        sp_ds = xr.open_mfdataset(sp_filelist_year).set_coords(['longitude', 'latitude'])
+        # sp_filelist_year = [f for f in sp_filelist if int(f[-9:-3])<orbit_year.sel(year=year+1).orbit.item() and int(f[-9:-3])>orbit_year.sel(year=year).orbit.item()]
+        # sp_ds = xr.open_mfdataset(sp_filelist_year).set_coords(['longitude', 'latitude'])
         agc_filelist_year = [f for f in agc_filelist if int(f[-9:-3])<orbit_year.sel(year=year+1).orbit.item() and int(f[-9:-3])>orbit_year.sel(year=year).orbit.item()]
         agc_ds = xr.open_mfdataset(agc_filelist_year).set_coords(['longitude', 'latitude'])
 
         #%% time_lat
         print('time_lat')
         mean_agc, count_agc, std_agc = groupby_time_lat(agc_ds, var=None)
-        mean_max_pw_freq, _, std_max_pw_freq= groupby_time_lat(sp_ds, 'max_pw_freq')
-        mean_max_pw, sp_count, std_max_pw = groupby_time_lat(sp_ds, 'max_pw')
+        # mean_max_pw_freq, _, std_max_pw_freq= groupby_time_lat(sp_ds, 'max_pw_freq')
+        # mean_max_pw, sp_count, std_max_pw = groupby_time_lat(sp_ds, 'max_pw')
         print('Save files')
-        filename = 'time_lat_{}.nc'.format(year)
+        filename = 'bounded_time_lat_{}.nc'.format(year)
         if len([f for f in glob.glob(path+'statistics/*.nc') if filename in f]) == 0:
-            mean_max_pw_freq.to_netcdf(path+'statistics/'+filename, mode='w')
+            mean_agc.to_netcdf(path+'statistics/'+filename, mode='w')
         else:
-            mean_max_pw_freq.to_netcdf(path+'statistics/'+filename, mode='a')
-        mean_max_pw.to_netcdf(path+'statistics/'+filename, mode='a')
-        mean_agc.to_netcdf(path+'statistics/'+filename, mode='a')
-        std_max_pw_freq.to_netcdf(path+'statistics/'+filename, mode='a')
-        std_max_pw.to_netcdf(path+'statistics/'+filename, mode='a')
+            mean_agc.to_netcdf(path+'statistics/'+filename, mode='a')
         std_agc.to_netcdf(path+'statistics/'+filename, mode='a')
         count_agc.to_netcdf(path+'statistics/'+filename, mode='a')
-        sp_count.rename('sp_sample_count').to_netcdf(path+'statistics/'+filename, mode='a')
+
+        # mean_max_pw_freq.to_netcdf(path+'statistics/'+filename, mode='a')
+        # mean_max_pw.to_netcdf(path+'statistics/'+filename, mode='a')
+        # std_max_pw_freq.to_netcdf(path+'statistics/'+filename, mode='a')
+        # std_max_pw.to_netcdf(path+'statistics/'+filename, mode='a')
+        # sp_count.rename('sp_sample_count').to_netcdf(path+'statistics/'+filename, mode='a')
 
         #%% time_lat_lon
         print('time_lat_lon')
         mean_agc, count_agc, std_agc = groupby_time_lat_lon(agc_ds, var=None)
-        mean_max_pw_freq, _, std_max_pw_freq = groupby_time_lat_lon(sp_ds, 'max_pw_freq')
-        mean_max_pw, sp_count, std_max_pw = groupby_time_lat_lon(sp_ds, 'max_pw')
+        # mean_max_pw_freq, _, std_max_pw_freq = groupby_time_lat_lon(sp_ds, 'max_pw_freq')
+        # mean_max_pw, sp_count, std_max_pw = groupby_time_lat_lon(sp_ds, 'max_pw')
         print('Save files')
-        filename = 'time_lat_lon_{}.nc'.format(year)
+        filename = 'bounded_time_lat_lon_{}.nc'.format(year)
         if len([f for f in glob.glob(path+'statistics/*.nc') if filename in f]) == 0:
-            mean_max_pw_freq.to_netcdf(path+'statistics/'+filename, mode='w')
+            mean_agc.to_netcdf(path+'statistics/'+filename, mode='w')
         else:
-            mean_max_pw_freq.to_netcdf(path+'statistics/'+filename, mode='a')
-        mean_max_pw.to_netcdf(path+'statistics/'+filename, mode='a')
-        mean_agc.to_netcdf(path+'statistics/'+filename, mode='a')
-        std_max_pw_freq.to_netcdf(path+'statistics/'+filename, mode='a')
-        std_max_pw.to_netcdf(path+'statistics/'+filename, mode='a')
+            mean_agc.to_netcdf(path+'statistics/'+filename, mode='a')
         std_agc.to_netcdf(path+'statistics/'+filename, mode='a')
         count_agc.to_netcdf(path+'statistics/'+filename, mode='a')
-        sp_count.rename('sp_sample_count').to_netcdf(path+'statistics/'+filename, mode='a')
+
+        # mean_max_pw_freq.to_netcdf(path+'statistics/'+filename, mode='a')
+        # mean_max_pw.to_netcdf(path+'statistics/'+filename, mode='a')
+        # std_max_pw_freq.to_netcdf(path+'statistics/'+filename, mode='a')
+        # std_max_pw.to_netcdf(path+'statistics/'+filename, mode='a')
+        # sp_count.rename('sp_sample_count').to_netcdf(path+'statistics/'+filename, mode='a')
 
 #%%
