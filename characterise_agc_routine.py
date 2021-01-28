@@ -91,10 +91,12 @@ if __name__ == '__main__':
     ver_file_lst = glob.glob(ver_path + '*nc')
     agc_path = '/home/anqil/Documents/osiris_database/iris_oh/'
     agc_filename_pattern = 'airglow_character/agc_{}.nc'
-    agc_file_lst = glob.glob(agc_path + agc_filename_pattern.format('*'))
+    # agc_file_lst = glob.glob(agc_path + agc_filename_pattern.format('*'))
     # for f in ver_file_lst:
     def fun(f):
         orbit_num = f[-9:-3]
+        agc_file_lst = glob.glob(agc_path + agc_filename_pattern.format('*'))
+        
         if orbit_num in [k[-9:-3] for k in agc_file_lst]:
             print('{} already done'.format(orbit_num))
             pass

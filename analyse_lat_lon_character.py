@@ -1,4 +1,5 @@
 #%%
+import enum
 import numpy as np
 import xarray as xr
 import matplotlib.pyplot as plt
@@ -9,7 +10,7 @@ import pandas as pd
 
 #%% open statistics files -- time_lat
 path = '/home/anqil/Documents/osiris_database/iris_oh/statistics/'
-filename = 'bounded/bounded_time_lat_{}.nc'
+filename = 'time_lat_{}.nc'
 def set_idx(ds, year):
     idx = [np.datetime64('{}-{}'.format(year, str(month).zfill(2))) for month in ds.time_bins.values] 
     ds = ds.assign_coords(time_bins=idx)
@@ -29,9 +30,9 @@ mds = xr.merge(mds)
 mds = mds.rename(dict(latitude_bins='Latitude', time_bins='Time'))
 mds.Latitude.attrs['units'] = 'deg N'
 
-data_vars_lst = 'amplitude peak_height thickness'.split()
-data_vars_mul = [1, 1e-3, 1e-3]
-data_vars_units = 'pho_cm-1_s-1 km km'.split()
+data_vars_lst = 'amplitude peak_height thickness residual'.split()
+data_vars_mul = [1, 1e-3, 1e-3, 1]
+data_vars_units = 'pho_cm-1_s-1 km km pho_cm-1_s-1'.split()
 for i in range(len(data_vars_lst)):
     for s in 'mean_{} std_{}'.split():
         mds[s.format(data_vars_lst[i])] *= data_vars_mul[i]
@@ -40,15 +41,51 @@ for i in range(len(data_vars_lst)):
 #%% Longterm contourf plot
 fig, ax = plt.subplots(len(data_vars_lst)+1,1, figsize=(15,10), sharex=True, sharey=True)
 contourf_args = dict(x='Time', robust=True)
-for i, var in enumerate(['std_{}'.format(v) for v in data_vars_lst]):
+for i, var in enumerate(['mean_{}'.format(v) for v in data_vars_lst]):
     mds[var].plot.contourf(ax=ax[i], **contourf_args)
 [ax[i].set(xlabel='') for i in range(len(data_vars_lst))]
-mds.count_amplitude.plot.contourf(ax=ax[-1], vmax=8e3, **contourf_args)
-ax[0].set(title='STD')
+mds.count_amplitude.plot.contourf(ax=ax[-1], vmax=8e4, **contourf_args)
+ax[0].set(title='Mean')
 ax[-1].set(title='Sample Count')
 
+
+#%% check outliers
+par_lst = 'amplitude thickness peak_height residual all'.split()
+lat_bins = np.arange(-90, 100, 10)
+hist = hist_amplitude, hist_thickness, hist_peak_height, hist_residual, hist_all = [], [], [], [], []
+year_month = [[], [], [], [], []]
+for year in range(2001,2004):
+    with xr.open_dataset(path+filename.format(year)) as cond:
+        # h_amplitude, _ = cond.latitude.where(~cond.cond_amplitude).pipe(np.histogram, bins=lat_bins)
+        # h_thickness, _ = cond.latitude.where(~cond.cond_thickness).pipe(np.histogram, bins=lat_bins)
+        # h_peak_height, _ = cond.latitude.where(~cond.cond_peak_height).pipe(np.histogram, bins=lat_bins)
+        # h_residual, _ = cond.latitude.where(~cond.cond_residual).pipe(np.histogram, bins=lat_bins) 
+        # h_all, _ = cond.latitude.where(~(
+        #     cond.cond_residual * cond.cond_peak_height * cond.cond_thickness * cond.cond_amplitude)).pipe(
+        #         np.histogram, bins=lat_bins)
+        
+        # hist_amplitude.append(h_amplitude)
+        # hist_thickness.append(h_thickness)
+        # hist_peak_height.append(h_peak_height)
+        # hist_residual.append(h_residual)
+        # hist_all.append(h_all)
+
+        cond.update({'cond_all': cond.cond_residual * cond.cond_peak_height * cond.cond_thickness * cond.cond_amplitude})
+        for i, par in enumerate(par_lst):
+            for month, group in cond.latitude.where(~cond['cond_'+par]).groupby(cond.time.dt.month):
+                h, _ = group.pipe(np.histogram, bins=lat_bins)
+                hist[i].append(h)
+                year_month[i].append(np.datetime64('{}-{}'.format(year, str(month).zfill(2))))
+
+hist = xr.Dataset({'hist_'+par: (('time', 'latitude'), hist[i]) for i, par in enumerate(par_lst)}).assign_coords(time=year_month[0], latitude=lat_bins[:-1]+5)
+#%% histogram outlier
+fig, ax = plt.subplots(len(par_lst),1, figsize=(10,8), sharex=True, sharey=True)
+for i, par in enumerate(par_lst):
+    hist['hist_'+par].plot.contourf(x='time', ax=ax[i], cbar_kwargs=dict(label=''))
+    ax[i].set(title=par, xlabel='')
+
 #%% open statistics files -- time_lat_lon
-filename = 'archive/time_lat_lon_{}.nc'
+filename = 'time_lat_lon_{}.nc'
 def set_midx(ds):
     midx = pd.MultiIndex.from_product(
         [[year], ds.time_bins.values], names=('year', 'season'))
@@ -65,13 +102,21 @@ mds = mds.rename(dict(latitude_bins='Latitude', longitude_bins='Longitude', time
 mds.Latitude.attrs['units'] = 'deg N'
 mds.Longitude.attrs['units'] = 'deg E'
 
-data_vars_lst = 'max_pw_freq max_pw amplitude peak_height thickness'.split()
-data_vars_mul = [1e3, 1, 1, 1e-3, 1e-3]
-data_vars_units = 'km-1 ? pho_cm-1_s-1 km km'.split()
+data_vars_lst = 'amplitude peak_height thickness residual'.split()
+data_vars_mul = [1, 1e-3, 1e-3, 1]
+data_vars_units = 'pho_cm-1_s-1 km km pho_cm-1_s-1'.split()
 for i in range(len(data_vars_lst)):
     for s in 'mean_{} std_{}'.split():
         mds[s.format(data_vars_lst[i])] *= data_vars_mul[i]
         mds[s.format(data_vars_lst[i])].attrs['units'] = data_vars_units[i] 
+
+# data_vars_lst = 'max_pw_freq max_pw amplitude peak_height thickness'.split()
+# data_vars_mul = [1e3, 1, 1, 1e-3, 1e-3]
+# data_vars_units = 'km-1 ? pho_cm-1_s-1 km km'.split()
+# for i in range(len(data_vars_lst)):
+#     for s in 'mean_{} std_{}'.split():
+#         mds[s.format(data_vars_lst[i])] *= data_vars_mul[i]
+#         mds[s.format(data_vars_lst[i])].attrs['units'] = data_vars_units[i] 
 
 # mds['max_pw_freq'] = mds.max_pw_freq*1e3
 # mds.max_pw_freq.attrs['units'] = '  km-1'
@@ -90,8 +135,7 @@ contourf_args = dict(y='Latitude', x='Longitude', col='season', row='year', robu
     cbar_kwargs=dict()
     )
 time_seq = ['DJF', 'MAM', 'JJA', 'SON']
-year = [2002]
-data_vars_lst = 'max_pw_freq max_pw amplitude peak_height thickness'.split()
+year = [2002, 2003, 2004]
 for var in ['mean_{}'.format(v) for v in data_vars_lst]:
     fig = plt.figure(figsize=(10,5))
     p = mds.sel(year=year).reindex(season=time_seq)[var].plot.contourf(**contourf_args)
@@ -101,15 +145,7 @@ for var in ['mean_{}'.format(v) for v in data_vars_lst]:
     plt.suptitle(var)
     plt.show()
 
-#%%
-var = 'sp_sample_count'#'count_amplitude'
-fig = plt.figure(figsize=(10,5))
-p = mds.sel(year=year).reindex(season=time_seq)[var].plot.contourf(**contourf_args)
-for ax in p.axes.flat:
-    ax.coastlines()
-    ax.set_global()
-plt.suptitle(var)
-plt.show()
+
 
 
 

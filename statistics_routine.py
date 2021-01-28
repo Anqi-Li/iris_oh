@@ -3,7 +3,6 @@ import numpy as np
 import xarray as xr
 import glob 
 
-
 #%%
 def groupby_time_lat(ds, var=None, dlat=20):
     print(var)
@@ -89,9 +88,62 @@ def groupby_time_lat_lon(ds, var=None, dlat=20, dlon=20):
 
     return mean, count, std
 
+#%% check histogram distributions
+# import seaborn as sns
+# import matplotlib.pyplot as plt
+# # rough estimates of odin year-orbits
+# orbit_year = xr.open_dataset('/home/anqil/Documents/osiris_database/odin_rough_orbit_year.nc')
+# orbit_year.close()
+
+# # character files
+# path = '/home/anqil/Documents/osiris_database/iris_oh/'
+# agc_filelist = glob.glob(path + 'airglow_character/agc_*.nc')
+
+# hist_peak_height, hist_thickness, hist_amplitude, hist_residual = [], [], [], []
+# for year in range(2003, 2015):
+#     print(year)
+#     agc_filelist_year = [f for f in agc_filelist 
+#         if int(f[-9:-3])>orbit_year.sel(year=year).orbit.item()
+#         and int(f[-9:-3])<orbit_year.sel(year=year+1).orbit.item()]
+#     with xr.open_mfdataset(agc_filelist_year) as agc_ds:
+#         agc_ds = agc_ds.set_coords(['longitude', 'latitude']).drop(('orbit', 'channel'))
+#         hist_amplitude.append(agc_ds.amplitude.pipe(np.histogram, bins=[0,1e5, 2e10]))
+#         hist_thickness.append(agc_ds.thickness.pipe(np.histogram, bins=[-1e6, -40e3, 40e3, 1e6]))
+#         hist_peak_height.append(agc_ds.peak_height.pipe(np.histogram, bins=[-2e6, 0, 60e3, 100e3, 2e6]))
+#         hist_residual.append(agc_ds.residual.pipe(np.histogram, bins=[0, 1e5, 1e6, 1e7]))
+
+# #%% plots
+# title_lst = 'amplitude thickness peak_height residual'.split()
+# fig, ax = plt.subplots(1,4, figsize=(10,4))
+# for i, hist in enumerate([hist_amplitude, hist_thickness, hist_peak_height, hist_residual]):
+#     year = 2003
+#     for density, bins in hist:
+#         ax[i].bar(bins[:-1], density, label=year, align='center')#where='mid')
+#         year+=1
+#     ax[i].set(title=title_lst[i], yscale='log')
+# plt.legend()
+# ax[0].set(xscale='log')
+# ax[-1].set(xscale='log')
+# plt.show()
+
+# #%% KDE plot
+# par_lst = 'amplitude thickness peak_height residual'.split()
+# fig, ax = plt.subplots(1,4, figsize=(10,4))
+# for year in range(2002, 2015):
+#     print(year)
+#     agc_filelist_year = [f for f in agc_filelist 
+#         if int(f[-9:-3])>orbit_year.sel(year=year).orbit.item()
+#         and int(f[-9:-3])<orbit_year.sel(year=year+1).orbit.item()]
+#     with xr.open_mfdataset(agc_filelist_year) as agc_ds:
+#         agc_ds = agc_ds.set_coords(['longitude', 'latitude']).drop(('orbit', 'channel'))
+#         for i, par in enumerate(par_lst):
+#             agc_ds[par].pipe(sns.kdeplot, ax=ax[i], label=year)
+
+# plt.legend()
+
 #%%
 if __name__ == '__main__':
-    
+
     # %% rough estimates of odin year-orbits
     orbit_year = xr.open_dataset('/home/anqil/Documents/osiris_database/odin_rough_orbit_year.nc')
     orbit_year.close()
@@ -99,27 +151,44 @@ if __name__ == '__main__':
     #%% character files
     path = '/home/anqil/Documents/osiris_database/iris_oh/'
     # sp_filelist = glob.glob(path+'spectral_character/archive/sp_*.nc')
-    agc_filelist = glob.glob(path + 'airglow_character/archive_bounded/agc_*.nc')
+    agc_filelist = glob.glob(path + 'airglow_character/agc_*.nc')
 
     #%% select relevant data for analysis (year? dayofyear?)
-    for year in range(2011, 2019):
+    for year in range(2001, 2018):
         print('load year {} '.format(year))
         # sp_filelist_year = [f for f in sp_filelist if int(f[-9:-3])<orbit_year.sel(year=year+1).orbit.item() and int(f[-9:-3])>orbit_year.sel(year=year).orbit.item()]
         # sp_ds = xr.open_mfdataset(sp_filelist_year).set_coords(['longitude', 'latitude'])
-        agc_filelist_year = [f for f in agc_filelist if int(f[-9:-3])<orbit_year.sel(year=year+1).orbit.item() and int(f[-9:-3])>orbit_year.sel(year=year).orbit.item()]
-        agc_ds = xr.open_mfdataset(agc_filelist_year).set_coords(['longitude', 'latitude'])
+        agc_filelist_year = [f for f in agc_filelist 
+            if int(f[-9:-3])>orbit_year.sel(year=year).orbit.item()
+                 and int(f[-9:-3])<orbit_year.sel(year=year+1).orbit.item()]
+        with xr.open_mfdataset(agc_filelist_year) as agc_ds:
+            agc_ds = agc_ds.set_coords(['longitude', 'latitude']).drop(('orbit', 'channel'))
+            agc_ds['thickness'] = abs(agc_ds.thickness)
+
+            #%% filter unphysical data
+            cond_amplitude = np.logical_and(agc_ds.amplitude<1e5, agc_ds.amplitude>0)
+            cond_thickness = np.logical_and(agc_ds.thickness<40e3, agc_ds.thickness>0)
+            cond_peak_height = np.logical_and(agc_ds.peak_height<100e3, agc_ds.peak_height>60e3)
+            cond_residual = (agc_ds.residual<1e5)
+            agc_ds = agc_ds.where(cond_amplitude * cond_thickness * cond_peak_height * cond_residual) 
+
+            cond_amplitude.rename('cond_amplitude').to_netcdf(path+'statistics/filterin_{}.nc'.format(year), mode='w')
+            cond_thickness.rename('cond_thickness').to_netcdf(path+'statistics/filterin_{}.nc'.format(year), mode='a')
+            cond_peak_height.rename('cond_peak_height').to_netcdf(path+'statistics/filterin_{}.nc'.format(year), mode='a')
+            cond_residual.rename('cond_residual').to_netcdf(path+'statistics/filterin_{}.nc'.format(year), mode='a')
 
         #%% time_lat
         print('time_lat')
         mean_agc, count_agc, std_agc = groupby_time_lat(agc_ds, var=None)
         # mean_max_pw_freq, _, std_max_pw_freq= groupby_time_lat(sp_ds, 'max_pw_freq')
         # mean_max_pw, sp_count, std_max_pw = groupby_time_lat(sp_ds, 'max_pw')
-        print('Save files')
-        filename = 'bounded_time_lat_{}.nc'.format(year)
-        if len([f for f in glob.glob(path+'statistics/*.nc') if filename in f]) == 0:
-            mean_agc.to_netcdf(path+'statistics/'+filename, mode='w')
-        else:
-            mean_agc.to_netcdf(path+'statistics/'+filename, mode='a')
+        
+        filename = 'time_lat_{}.nc'.format(year)
+        print('Save file {}'.format(filename))
+        # if len([f for f in glob.glob(path+'statistics/*.nc') if filename in f]) == 0:
+        mean_agc.to_netcdf(path+'statistics/'+filename, mode='w')
+        # else:
+            # mean_agc.to_netcdf(path+'statistics/'+filename, mode='a')
         std_agc.to_netcdf(path+'statistics/'+filename, mode='a')
         count_agc.to_netcdf(path+'statistics/'+filename, mode='a')
 
@@ -134,12 +203,13 @@ if __name__ == '__main__':
         mean_agc, count_agc, std_agc = groupby_time_lat_lon(agc_ds, var=None)
         # mean_max_pw_freq, _, std_max_pw_freq = groupby_time_lat_lon(sp_ds, 'max_pw_freq')
         # mean_max_pw, sp_count, std_max_pw = groupby_time_lat_lon(sp_ds, 'max_pw')
-        print('Save files')
-        filename = 'bounded_time_lat_lon_{}.nc'.format(year)
-        if len([f for f in glob.glob(path+'statistics/*.nc') if filename in f]) == 0:
-            mean_agc.to_netcdf(path+'statistics/'+filename, mode='w')
-        else:
-            mean_agc.to_netcdf(path+'statistics/'+filename, mode='a')
+        
+        filename = 'time_lat_lon_{}.nc'.format(year)
+        print('Save file {}'.format(filename))
+        # if len([f for f in glob.glob(path+'statistics/*.nc') if filename in f]) == 0:
+        mean_agc.to_netcdf(path+'statistics/'+filename, mode='w')
+        # else:
+            # mean_agc.to_netcdf(path+'statistics/'+filename, mode='a')
         std_agc.to_netcdf(path+'statistics/'+filename, mode='a')
         count_agc.to_netcdf(path+'statistics/'+filename, mode='a')
 

@@ -120,7 +120,7 @@ if __name__ == '__main__':
                 print('process orbit {}'.format(orbit))
                 _ = invert_1d(orbit, ch, path_limb, save_file=True, 
                     ver_file_pattern=path_ver+ver_filename_pattern)
-            orbit += 5
+            orbit += 2
         except FileNotFoundError:
             orbit += 1
             print('invert the next orbit')
