@@ -27,8 +27,8 @@ for year in range(2001,2018):
 mds = xr.merge(mds)
 
 #% some adjustments on the longterm dataset
-mds = mds.rename(dict(latitude_bins='Latitude', time_bins='Time'))
-mds.Latitude.attrs['units'] = 'deg N'
+mds = mds.rename(dict(latitude_bins='latitude', time_bins='time'))
+mds.latitude.attrs['units'] = 'deg N'
 
 data_vars_lst = 'amplitude peak_height thickness residual'.split()
 data_vars_mul = [1, 1e-3, 1e-3, 1]
@@ -40,7 +40,7 @@ for i in range(len(data_vars_lst)):
 
 #%% Longterm contourf plot
 fig, ax = plt.subplots(len(data_vars_lst)+1,1, figsize=(15,10), sharex=True, sharey=True)
-contourf_args = dict(x='Time', robust=True)
+contourf_args = dict(x='time', robust=True)
 for i, var in enumerate(['mean_{}'.format(v) for v in data_vars_lst]):
     mds[var].plot.contourf(ax=ax[i], **contourf_args)
 [ax[i].set(xlabel='') for i in range(len(data_vars_lst))]
@@ -50,11 +50,13 @@ ax[-1].set(title='Sample Count')
 
 
 #%% check outliers
+filename = 'filterin_{}.nc'
 par_lst = 'amplitude thickness peak_height residual all'.split()
-lat_bins = np.arange(-90, 100, 10)
+lat_bins = np.arange(-90, 100, 20)
 hist = hist_amplitude, hist_thickness, hist_peak_height, hist_residual, hist_all = [], [], [], [], []
 year_month = [[], [], [], [], []]
-for year in range(2001,2004):
+for year in range(2001,2018):
+    print(year)
     with xr.open_dataset(path+filename.format(year)) as cond:
         # h_amplitude, _ = cond.latitude.where(~cond.cond_amplitude).pipe(np.histogram, bins=lat_bins)
         # h_thickness, _ = cond.latitude.where(~cond.cond_thickness).pipe(np.histogram, bins=lat_bins)
@@ -70,18 +72,19 @@ for year in range(2001,2004):
         # hist_residual.append(h_residual)
         # hist_all.append(h_all)
 
-        cond.update({'cond_all': cond.cond_residual * cond.cond_peak_height * cond.cond_thickness * cond.cond_amplitude})
+        cond = cond.update({'cond_all': cond.cond_residual * cond.cond_peak_height * cond.cond_thickness * cond.cond_amplitude})
         for i, par in enumerate(par_lst):
             for month, group in cond.latitude.where(~cond['cond_'+par]).groupby(cond.time.dt.month):
-                h, _ = group.pipe(np.histogram, bins=lat_bins)
+                # h, _ = group.pipe(np.histogram, bins=lat_bins)
+                h = group.groupby_bins(group.latitude, lat_bins).count(...)
                 hist[i].append(h)
                 year_month[i].append(np.datetime64('{}-{}'.format(year, str(month).zfill(2))))
 
-hist = xr.Dataset({'hist_'+par: (('time', 'latitude'), hist[i]) for i, par in enumerate(par_lst)}).assign_coords(time=year_month[0], latitude=lat_bins[:-1]+5)
+hist = xr.Dataset({'hist_'+par: (('time', 'latitude'), hist[i]) for i, par in enumerate(par_lst)}).assign_coords(time=year_month[0], latitude=lat_bins[:-1]+10)
 #%% histogram outlier
 fig, ax = plt.subplots(len(par_lst),1, figsize=(10,8), sharex=True, sharey=True)
 for i, par in enumerate(par_lst):
-    hist['hist_'+par].plot.contourf(x='time', ax=ax[i], cbar_kwargs=dict(label=''))
+    hist['hist_'+par].pipe(lambda x: x/mds.count_amplitude * 100).plot(x='time', ax=ax[i], robust=True, cbar_kwargs=dict(label='%'))
     ax[i].set(title=par, xlabel='')
 
 #%% open statistics files -- time_lat_lon

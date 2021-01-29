@@ -89,57 +89,61 @@ def groupby_time_lat_lon(ds, var=None, dlat=20, dlon=20):
     return mean, count, std
 
 #%% check histogram distributions
-# import seaborn as sns
-# import matplotlib.pyplot as plt
-# # rough estimates of odin year-orbits
-# orbit_year = xr.open_dataset('/home/anqil/Documents/osiris_database/odin_rough_orbit_year.nc')
-# orbit_year.close()
+import seaborn as sns
+import matplotlib.pyplot as plt
+# rough estimates of odin year-orbits
+orbit_year = xr.open_dataset('/home/anqil/Documents/osiris_database/odin_rough_orbit_year.nc')
+orbit_year.close()
 
-# # character files
-# path = '/home/anqil/Documents/osiris_database/iris_oh/'
-# agc_filelist = glob.glob(path + 'airglow_character/agc_*.nc')
+# character files
+path = '/home/anqil/Documents/osiris_database/iris_oh/'
+agc_filelist = glob.glob(path + 'airglow_character/agc_*.nc')
 
-# hist_peak_height, hist_thickness, hist_amplitude, hist_residual = [], [], [], []
-# for year in range(2003, 2015):
-#     print(year)
-#     agc_filelist_year = [f for f in agc_filelist 
-#         if int(f[-9:-3])>orbit_year.sel(year=year).orbit.item()
-#         and int(f[-9:-3])<orbit_year.sel(year=year+1).orbit.item()]
-#     with xr.open_mfdataset(agc_filelist_year) as agc_ds:
-#         agc_ds = agc_ds.set_coords(['longitude', 'latitude']).drop(('orbit', 'channel'))
-#         hist_amplitude.append(agc_ds.amplitude.pipe(np.histogram, bins=[0,1e5, 2e10]))
-#         hist_thickness.append(agc_ds.thickness.pipe(np.histogram, bins=[-1e6, -40e3, 40e3, 1e6]))
-#         hist_peak_height.append(agc_ds.peak_height.pipe(np.histogram, bins=[-2e6, 0, 60e3, 100e3, 2e6]))
-#         hist_residual.append(agc_ds.residual.pipe(np.histogram, bins=[0, 1e5, 1e6, 1e7]))
+hist_peak_height, hist_thickness, hist_amplitude, hist_residual = [], [], [], []
+for year in range(2003, 2018):
+    print(year)
+    agc_filelist_year = [f for f in agc_filelist 
+        if int(f[-9:-3])>orbit_year.sel(year=year).orbit.item()
+        and int(f[-9:-3])<orbit_year.sel(year=year+1).orbit.item()]
+    with xr.open_mfdataset(agc_filelist_year) as agc_ds:
+        agc_ds = agc_ds.set_coords(['longitude', 'latitude']).drop(('orbit', 'channel'))
+        agc_ds['thickness'] = abs(agc_ds.thickness)
 
-# #%% plots
-# title_lst = 'amplitude thickness peak_height residual'.split()
-# fig, ax = plt.subplots(1,4, figsize=(10,4))
-# for i, hist in enumerate([hist_amplitude, hist_thickness, hist_peak_height, hist_residual]):
-#     year = 2003
-#     for density, bins in hist:
-#         ax[i].bar(bins[:-1], density, label=year, align='center')#where='mid')
-#         year+=1
-#     ax[i].set(title=title_lst[i], yscale='log')
-# plt.legend()
-# ax[0].set(xscale='log')
-# ax[-1].set(xscale='log')
+        hist_amplitude.append(agc_ds.amplitude.pipe(np.histogram, bins=[0,1e5, 2e10]))
+        hist_thickness.append(agc_ds.thickness.pipe(np.histogram, bins=[0, 40e3, 1e6]))
+        hist_peak_height.append(agc_ds.peak_height.pipe(np.histogram, bins=[-2e6, 0, 60e3, 100e3, 2e6]))
+        hist_residual.append(agc_ds.residual.pipe(np.histogram, bins=[0, 1e4, 1e5, 1e6, 1e7]))
+
+#%% plots
+title_lst = 'amplitude thickness peak_height residual'.split()
+fig, ax = plt.subplots(1,4, figsize=(10,4))
+for i, hist in enumerate([hist_amplitude, hist_thickness, hist_peak_height, hist_residual]):
+    year = 2003
+    for density, bins in hist:
+        ax[i].plot(bins[1:], density, label=year)#, where='pre') #align='edge')
+        year+=1
+    ax[i].set(title=title_lst[i], yscale='log', xscale='log')
+plt.legend()
+ax[0].set(xscale='log')
+ax[-1].set(xscale='log')
 # plt.show()
 
-# #%% KDE plot
-# par_lst = 'amplitude thickness peak_height residual'.split()
-# fig, ax = plt.subplots(1,4, figsize=(10,4))
-# for year in range(2002, 2015):
-#     print(year)
-#     agc_filelist_year = [f for f in agc_filelist 
-#         if int(f[-9:-3])>orbit_year.sel(year=year).orbit.item()
-#         and int(f[-9:-3])<orbit_year.sel(year=year+1).orbit.item()]
-#     with xr.open_mfdataset(agc_filelist_year) as agc_ds:
-#         agc_ds = agc_ds.set_coords(['longitude', 'latitude']).drop(('orbit', 'channel'))
-#         for i, par in enumerate(par_lst):
-#             agc_ds[par].pipe(sns.kdeplot, ax=ax[i], label=year)
+#%% KDE plot
+par_lst = 'amplitude thickness peak_height residual'.split()
+fig, ax = plt.subplots(1,4, figsize=(10,4))
+kde = []
+for year in range(2002, 2018):
+    print(year)
+    agc_filelist_year = [f for f in agc_filelist 
+        if int(f[-9:-3])>orbit_year.sel(year=year).orbit.item()
+        and int(f[-9:-3])<orbit_year.sel(year=year+1).orbit.item()]
+    with xr.open_mfdataset(agc_filelist_year) as agc_ds:
+        agc_ds = agc_ds.set_coords(['longitude', 'latitude']).drop(('orbit', 'channel'))
+        agc_ds['thickness'] = abs(agc_ds.thickness)
+        for i, par in enumerate(par_lst):
+            kde.append(agc_ds[par].pipe(sns.kdeplot, ax=ax[i], label=year))
 
-# plt.legend()
+plt.legend()
 
 #%%
 if __name__ == '__main__':

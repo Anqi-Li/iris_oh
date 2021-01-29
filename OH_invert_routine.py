@@ -4,6 +4,7 @@ import xarray as xr
 from oem_functions import linear_oem
 from geometry_functions import pathl1d_iris
 import glob
+from multiprocessing import Pool
 
 #%%
 def invert_1d(orbit, ch, path, save_file=False, ver_file_pattern=None, im_lst=None):
@@ -110,23 +111,31 @@ if __name__ == '__main__':
     # path_ver = '/home/anqil/Documents/osiris_database/iris_oh/'
     path_ver = '/home/anqil/Documents/sshfs/oso_extra_storage/VER/oh/'
     ver_filename_pattern = 'iri_oh_ver_{}.nc'
-    ver_file_lst = glob.glob(path_ver + ver_filename_pattern.format('*'))
-    while orbit < 90000:
-        try:
-            if path_ver+ver_filename_pattern.format(str(orbit).zfill(6)) in ver_file_lst:
-                print('orbit {} already exist'.format(orbit))
-                pass
-            else:
-                print('process orbit {}'.format(orbit))
-                _ = invert_1d(orbit, ch, path_limb, save_file=True, 
-                    ver_file_pattern=path_ver+ver_filename_pattern)
-            orbit += 2
-        except FileNotFoundError:
-            orbit += 1
-            print('invert the next orbit')
-        except OSError:
-            orbit_error.append(orbit)
-            orbit += 1
+    # ver_file_lst = glob.glob(path_ver + ver_filename_pattern.format('*'))
+    def fun(orbit_start):
+        orbit = orbit_start.copy()
+        while orbit < 90000:
+            try:
+                ver_file_lst = glob.glob(path_ver + ver_filename_pattern.format('*'))
+                if path_ver+ver_filename_pattern.format(str(orbit).zfill(6)) in ver_file_lst:
+                    print('orbit {} already exist'.format(orbit))
+                    pass
+                else:
+                    print('process orbit {}'.format(orbit))
+                    _ = invert_1d(orbit, ch, path_limb, save_file=True, 
+                        ver_file_pattern=path_ver+ver_filename_pattern)
+                orbit += 2
+            except FileNotFoundError:
+                orbit += 1
+                print('invert the next orbit')
+            except OSError:
+                orbit_error.append(orbit)
+                orbit += 1
+    # rough estimates of odin year-orbits
+    orbit_year = xr.open_dataset('/home/anqil/Documents/osiris_database/odin_rough_orbit_year.nc')
+    orbit_year.close()
+    with Pool(processes=2) as p:
+        p.map(fun, orbit_year.sel(year=slice(2007, 2008)).orbit.values)
 
             
             
