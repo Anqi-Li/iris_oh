@@ -8,15 +8,16 @@ from xhistogram.xarray import histogram
 import glob
 
 # %% open VER file
-orbit = 4814 #3713
+orbit = 3713#4814 #3713
 orbit_num = str(orbit).zfill(6)
-path = '/home/anqil/Documents/osiris_database/iris_oh/'
+path = '/home/anqil/Documents//sshfs/oso_extra_storage/VER/oh/'
 filename = 'iri_oh_ver_{}.nc'
 ds = xr.open_dataset(path+filename.format(orbit_num))
 ds.close()
 ds = ds.update({'tp' : (['time'],
         (ds.time - ds.time[0])/(ds.time[-1]-ds.time[0]))})
 #%% open airglow character (agc) file
+path = '/home/anqil/Documents/osiris_database/iris_oh/'
 filename = '/airglow_character/agc_{}.nc'
 ds_agc = xr.open_dataset(path+filename.format(orbit_num))
 ds_agc.close()
@@ -25,7 +26,7 @@ ds = ds.update(ds_agc).swap_dims({'time': 'tp'})
 ver_data = ds.ver.where(ds.mr>0.8)
 
 #%% reconstruct the gaussian function
-from characterise_ver_routine import gauss
+from characterise_agc_routine import gauss
 gauss_fit = []
 for a, x0, sigma in zip(ds.amplitude, 
     ds.peak_height, ds.thickness):
@@ -39,7 +40,7 @@ fig, ax = plt.subplots(3,1, sharex=True, sharey=True)
 plot_args = dict(cmap='viridis', x='tp', robust=True, vmin=0, vmax=7e3)
 ver_data.plot(ax=ax[0], **plot_args)
 gauss_fit.plot(ax=ax[1], **plot_args)
-(ver_data - gauss_fit).plot(ax=ax[2], y='z')
+(ver_data - gauss_fit).plot(ax=ax[2], y='z', vmax=3e3, vmin=-3e3)
 
 ax[0].set(title='Original VER',
             xlabel='')

@@ -39,12 +39,14 @@ for i in range(len(data_vars_lst)):
         mds[s.format(data_vars_lst[i])].attrs['units'] = data_vars_units[i] 
 
 #%% Longterm contourf plot
+data_vars_lst = 'amplitude peak_height thickness'.split()
+
 fig, ax = plt.subplots(len(data_vars_lst)+1,1, figsize=(15,10), sharex=True, sharey=True)
 contourf_args = dict(x='time', robust=True)
 for i, var in enumerate(['mean_{}'.format(v) for v in data_vars_lst]):
-    mds[var].plot.contourf(ax=ax[i], **contourf_args)
+    mds[var].rename(data_vars_lst[i]).plot.contourf(ax=ax[i], **contourf_args)
 [ax[i].set(xlabel='') for i in range(len(data_vars_lst))]
-mds.count_amplitude.plot.contourf(ax=ax[-1], vmax=8e4, **contourf_args)
+mds.count_amplitude.rename('num. of sample').plot.contourf(ax=ax[-1], vmax=8e4, **contourf_args)
 ax[0].set(title='Mean')
 ax[-1].set(title='Sample Count')
 
