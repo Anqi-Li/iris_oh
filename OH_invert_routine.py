@@ -114,28 +114,31 @@ if __name__ == '__main__':
     # ver_file_lst = glob.glob(path_ver + ver_filename_pattern.format('*'))
     def fun(orbit_start):
         orbit = orbit_start.copy()
-        while orbit < 90000:
-            try:
-                ver_file_lst = glob.glob(path_ver + ver_filename_pattern.format('*'))
-                if path_ver+ver_filename_pattern.format(str(orbit).zfill(6)) in ver_file_lst:
-                    print('orbit {} already exist'.format(orbit))
-                    pass
-                else:
-                    print('process orbit {}'.format(orbit))
+        while orbit < 89999:
+            ver_file_lst = glob.glob(path_ver + ver_filename_pattern.format('*'))
+            if path_ver+ver_filename_pattern.format(str(orbit).zfill(6)) in ver_file_lst:
+                print('orbit {} already exist'.format(orbit))
+                orbit += 1
+            else:
+                try:
                     _ = invert_1d(orbit, ch, path_limb, save_file=True, 
                         ver_file_pattern=path_ver+ver_filename_pattern)
-                orbit += 1
-            except FileNotFoundError:
-                orbit += 1
-                print('invert the next orbit')
-            except OSError:
-                orbit_error.append(orbit)
-                orbit += 1
+                    orbit += 1
+                    print('process orbit {}'.format(orbit))
+                    
+                except FileNotFoundError:
+                    orbit += 1
+                    print('file not found {}'.format(orbit))
+                except OSError:
+                    orbit_error.append(orbit)
+                    print('OSError')
+                    orbit += 1
+        return orbit_error
     # rough estimates of odin year-orbits
     orbit_year = xr.open_dataset('/home/anqil/Documents/osiris_database/odin_rough_orbit_year.nc')
     orbit_year.close()
-    with Pool(processes=6) as p:
-        p.map(fun, orbit_year.sel(year=slice(2010, 2015)).orbit.values)
+    with Pool(processes=2) as p:
+        r = p.map(fun, orbit_year.sel(year=slice(2016, 2017)).orbit.values)
 
             
             
