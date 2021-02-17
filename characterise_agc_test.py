@@ -10,7 +10,7 @@ import glob
 # %% open VER file
 orbit = 4814 #3713
 orbit_num = str(orbit).zfill(6)
-path = '/home/anqil/Documents/osiris_database/iris_oh/'
+path = '/home/anqil/Documents/sshfs/oso_extra_storage/VER/oh/'
 filename = 'iri_oh_ver_{}.nc'
 ds = xr.open_dataset(path+filename.format(orbit_num))
 ds.close()
@@ -41,13 +41,14 @@ def characterise_layer(da_ver_profile, a0=5e3, mean0=85e3, sigma0=5e3):
 *popt, pcov = characterise_layer(da_ver_profile)
 
 ds.ver.isel(**isel_args).plot(y='z', label='VER data')
-ds.z.pipe(gauss, *popt).plot(y='z', label='Gaussian fit: \n a=%1.0f, x0=%1.0f, sigma=%1.0f' % tuple(popt))
+ds.z.pipe(gauss, *popt).plot(y='z', color='r', 
+    label='Gaussian fit: \n a=%1.0f, x0=%1.0f, sigma=%1.0f' % tuple(popt))
 ds.ver.isel(**isel_args).rolling(z=5, center=True).mean(
-    ).plot(y='z', label='SMA 5km')
-p0 = (5e3, 85e3, 5e3)
-ds.z.pipe(gauss, *p0).plot(y='z', label='Initial guess: \n a=%1.0f, x0=%1.0f, sigma=%1.0f' % tuple(p0))
+    ).plot(y='z', color='g', label='moving average 5km')
+# p0 = (5e3, 85e3, 5e3)
+# ds.z.pipe(gauss, *p0).plot(y='z', label='Initial guess: \n a=%1.0f, x0=%1.0f, sigma=%1.0f' % tuple(p0))
 plt.legend()
-# %%
+# %% gaussian fit the whole orbit
 from characterise_agc_routine import process_file
 f = path+filename.format(orbit_num)
 ds_agc = process_file(f, save_file=False)

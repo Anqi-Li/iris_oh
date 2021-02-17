@@ -205,25 +205,25 @@ if __name__ == '__main__':
         # sp_count.rename('sp_sample_count').to_netcdf(path+'statistics/'+filename, mode='a')
 
         #%% time_lat_lon
-        print('time_lat_lon')
-        mean_agc, count_agc, std_agc = groupby_time_lat_lon(agc_ds, var=None)
-        # mean_max_pw_freq, _, std_max_pw_freq = groupby_time_lat_lon(sp_ds, 'max_pw_freq')
-        # mean_max_pw, sp_count, std_max_pw = groupby_time_lat_lon(sp_ds, 'max_pw')
+        # print('time_lat_lon')
+        # mean_agc, count_agc, std_agc = groupby_time_lat_lon(agc_ds, var=None)
+        # # mean_max_pw_freq, _, std_max_pw_freq = groupby_time_lat_lon(sp_ds, 'max_pw_freq')
+        # # mean_max_pw, sp_count, std_max_pw = groupby_time_lat_lon(sp_ds, 'max_pw')
         
-        filename = 'time_lat_lon_{}.nc'.format(year)
-        print('Save file {}'.format(filename))
-        # if len([f for f in glob.glob(path+'statistics/*.nc') if filename in f]) == 0:
-        mean_agc.to_netcdf(path+'statistics/'+filename, mode='w')
-        # else:
-            # mean_agc.to_netcdf(path+'statistics/'+filename, mode='a')
-        std_agc.to_netcdf(path+'statistics/'+filename, mode='a')
-        count_agc.to_netcdf(path+'statistics/'+filename, mode='a')
+        # filename = 'time_lat_lon_{}.nc'.format(year)
+        # print('Save file {}'.format(filename))
+        # # if len([f for f in glob.glob(path+'statistics/*.nc') if filename in f]) == 0:
+        # mean_agc.to_netcdf(path+'statistics/'+filename, mode='w')
+        # # else:
+        #     # mean_agc.to_netcdf(path+'statistics/'+filename, mode='a')
+        # std_agc.to_netcdf(path+'statistics/'+filename, mode='a')
+        # count_agc.to_netcdf(path+'statistics/'+filename, mode='a')
 
-        # mean_max_pw_freq.to_netcdf(path+'statistics/'+filename, mode='a')
-        # mean_max_pw.to_netcdf(path+'statistics/'+filename, mode='a')
-        # std_max_pw_freq.to_netcdf(path+'statistics/'+filename, mode='a')
-        # std_max_pw.to_netcdf(path+'statistics/'+filename, mode='a')
-        # sp_count.rename('sp_sample_count').to_netcdf(path+'statistics/'+filename, mode='a')
+        # # mean_max_pw_freq.to_netcdf(path+'statistics/'+filename, mode='a')
+        # # mean_max_pw.to_netcdf(path+'statistics/'+filename, mode='a')
+        # # std_max_pw_freq.to_netcdf(path+'statistics/'+filename, mode='a')
+        # # std_max_pw.to_netcdf(path+'statistics/'+filename, mode='a')
+        # # sp_count.rename('sp_sample_count').to_netcdf(path+'statistics/'+filename, mode='a')
     with Pool(processes=8) as p:
         p.map(statistics, range(2009,2017))
 #%%

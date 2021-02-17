@@ -8,7 +8,7 @@ from xhistogram.xarray import histogram
 import glob
 
 # %% open VER file
-orbit = 3713#4814 #3713
+orbit = 4814 #38710 #4814 #3713
 orbit_num = str(orbit).zfill(6)
 path = '/home/anqil/Documents//sshfs/oso_extra_storage/VER/oh/'
 filename = 'iri_oh_ver_{}.nc'
@@ -24,7 +24,11 @@ ds_agc.close()
 ds = ds.update(ds_agc).swap_dims({'time': 'tp'})
 
 ver_data = ds.ver.where(ds.mr>0.8)
-
+#%%
+ds.ver.where(ds.mr>0.8).rolling(tp=20).mean().plot(x='tp', cmap='viridis', robust=True, vmin=0, vmax=7e3, ylim=(60e3,95e3))
+ds.peak_height.plot(x='tp', color='k', ls='-', alpha=0.8)
+ds.peak_height.pipe(lambda x: x+ds.thickness/2).plot(x='tp', color='k', ls='--', alpha=0.8)
+ds.peak_height.pipe(lambda x: x-ds.thickness/2).plot(x='tp', color='k', ls='--', alpha=0.8)
 #%% reconstruct the gaussian function
 from characterise_agc_routine import gauss
 gauss_fit = []
@@ -36,19 +40,37 @@ gauss_fit = xr.concat(gauss_fit, 'tp').assign_coords(
     tp=ds.tp).rename('gaussian ver')
 
 #%% Plot gaussian fit and anomaly
-fig, ax = plt.subplots(3,1, sharex=True, sharey=True)
-plot_args = dict(cmap='viridis', x='tp', robust=True, vmin=0, vmax=7e3)
+fig, ax = plt.subplots(4,1, figsize=(10,8), sharex=True, sharey=True)
+plot_args = dict(cmap='viridis', x='tp', robust=True, vmin=0, vmax=7e3, ylim=(60e3, 95e3))
 ver_data.plot(ax=ax[0], **plot_args)
 gauss_fit.plot(ax=ax[1], **plot_args)
-(ver_data - gauss_fit).plot(ax=ax[2], y='z', vmax=3e3, vmin=-3e3)
 
+plot_args = dict(y='z', xlim=(0.55,1), vmax=3e3, vmin=-3e3, cmap='viridis', ylim=(60e3, 95e3))
+(ver_data - gauss_fit).plot(ax=ax[2], **plot_args)
+(ver_data - gauss_fit).rolling(tp=20, min_periods=10).mean().plot(ax=ax[3], **plot_args)
+
+plt.suptitle(str(ds.time[0].values)[:-19])
 ax[0].set(title='Original VER',
             xlabel='')
 ax[1].set(title='Gaussian fitted VER',
             xlabel='')
-ax[2].set(title='Org - Gauss')
+ax[2].set(title='Org - Gauss',
+        xlabel='')
+ax[3].set(title='Org - Gauss (moving average)',
+        xlabel='Latitude / degree N')
 
-
+ax1 = ax[-1]
+ax1.set_xticklabels(np.round(ds.latitude.interp(
+        tp=ax1.get_xticks(), kwargs={'fill_value': 'extrapolate'}).values, 1))
+ax11 = ax1.twiny()
+ax11.xaxis.set_label_position('bottom')
+ax11.xaxis.set_ticks_position('bottom')
+ax11.spines['bottom'].set_position(('outward', 40))
+ax11.set(xlabel='Longitude / degree E')
+ax11.set_xlim(ax1.get_xlim())
+ax11.set_xticklabels(np.round(ds.longitude.interp(
+        tp=ax1.get_xticks(), kwargs={'fill_value': 'extrapolate'}).values, 1))
+plt.show()
 #%% Plot moving average of the anomaly
 fig, ax = plt.subplots(3,1, sharex=True, sharey=True)
 plot_args = dict(cmap='RdBu', y='z', robust=True)

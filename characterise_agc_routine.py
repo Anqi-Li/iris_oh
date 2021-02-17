@@ -106,6 +106,6 @@ if __name__ == '__main__':
             # process_file(f, save_file=False)
     
     shuffle(ver_file_lst)
-    with Pool(processes=6) as p:
+    with Pool(processes=12) as p:
         p.map(fun, ver_file_lst)
 # %%

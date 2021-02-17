@@ -53,9 +53,10 @@ orbit_bins = ref_orbit
 x0,*_ = plt.hist(orbits_downloaded, bins=orbit_bins, label='Downloaded to OSO')
 x1,*_ = plt.hist(orbits_ver, bins=orbit_bins, label='Inverted VER')
 x2,*_ = plt.hist(orbits_agc, bins=orbit_bins, label='Layer character')
+
 # plt.hist(orbits_sp, bins=orbit_bins, label='Spectral character')
 
-plt.step(orbit_bins[1:], x0*0.5, label='50% of downloaded', where='pre')
+plt.step(orbit_bins[1:], x0*0.05, label='5% of downloaded', where='pre')
 plt.legend()
 plt.xticks(ref_orbit, ref_year.values, rotation=40)
 plt.ylabel('Num. of orbits processed')

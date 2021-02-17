@@ -4,6 +4,7 @@ import xarray as xr
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 from scipy.interpolate import interp1d
+
 # %%
 path='/home/anqil/Documents/osiris_database/ex_data/cmam/'
 file = '{}_6hrChem_CMAM-Ext_CMAM30-SD_r1i1p1_2010010100-2010063018.nc'
