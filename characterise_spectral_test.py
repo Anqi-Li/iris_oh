@@ -10,8 +10,10 @@ import glob
 # %% open VER file
 orbit = 4814 #38710 #4814 #3713
 orbit_num = str(orbit).zfill(6)
-path = '/home/anqil/Documents//sshfs/oso_extra_storage/VER/oh/'
-filename = 'iri_oh_ver_{}.nc'
+# path = '/home/anqil/Documents//sshfs/oso_extra_storage/VER/oh/'
+# filename = 'iri_oh_ver_{}.nc'
+path = '/home/anqil/Documents/sshfs/oso_extra_storage/VER/Channel3/nightglow/'
+filename = 'iri_ch3_ver_{}.nc'
 ds = xr.open_dataset(path+filename.format(orbit_num))
 ds.close()
 ds = ds.update({'tp' : (['time'],
@@ -25,10 +27,10 @@ ds = ds.update(ds_agc).swap_dims({'time': 'tp'})
 
 ver_data = ds.ver.where(ds.mr>0.8)
 #%%
-ds.ver.where(ds.mr>0.8).rolling(tp=20).mean().plot(x='tp', cmap='viridis', robust=True, vmin=0, vmax=7e3, ylim=(60e3,95e3))
-ds.peak_height.plot(x='tp', color='k', ls='-', alpha=0.8)
-ds.peak_height.pipe(lambda x: x+ds.thickness/2).plot(x='tp', color='k', ls='--', alpha=0.8)
-ds.peak_height.pipe(lambda x: x-ds.thickness/2).plot(x='tp', color='k', ls='--', alpha=0.8)
+ds.ver.where(ds.mr>0.8).rolling(tp=20).mean().plot(y='z', cmap='viridis', robust=True, vmin=0, vmax=7e3, ylim=(60e3,95e3))
+# ds.peak_height.plot(x='tp', color='k', ls='-', alpha=0.8)
+# ds.peak_height.pipe(lambda x: x+ds.thickness/2).plot(x='tp', color='k', ls='--', alpha=0.8)
+# ds.peak_height.pipe(lambda x: x-ds.thickness/2).plot(x='tp', color='k', ls='--', alpha=0.8)
 #%% reconstruct the gaussian function
 from characterise_agc_routine import gauss
 gauss_fit = []

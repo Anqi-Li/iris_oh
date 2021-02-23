@@ -26,13 +26,17 @@ ref_orbit = orbit_year.orbit
 ref_year = orbit_year.year
 
 # %% Check downloaded limb files
-ch = 1
+ch = 3
 path_limb = '/home/anqil/Documents/sshfs/oso_extra_storage/StrayLightCorrected/Channel{}/'.format(ch)
 files_limb = [f for f in listdir(path_limb) if 'nc' in f]
 orbits_downloaded = [int(s[-13:-7]) for s in files_limb]
 
 # % Check inverted VER files
-path_ver = '/home/anqil/Documents/sshfs/oso_extra_storage/VER/oh/'
+if ch == 3:
+    path_ver = '/home/anqil/Documents/sshfs/oso_extra_storage/VER/Channel3/nightglow/'
+elif ch == 1:
+    path_ver = '/home/anqil/Documents/sshfs/oso_extra_storage/VER/oh/'
+
 files_ver = [f for f in listdir(path_ver) if 'nc' in f]
 orbits_ver = [int(s[-9:-3]) for s in files_ver]
 
@@ -52,7 +56,7 @@ orbits_agc = [int(s[-9:-3]) for s in files_agc]
 orbit_bins = ref_orbit
 x0,*_ = plt.hist(orbits_downloaded, bins=orbit_bins, label='Downloaded to OSO')
 x1,*_ = plt.hist(orbits_ver, bins=orbit_bins, label='Inverted VER')
-x2,*_ = plt.hist(orbits_agc, bins=orbit_bins, label='Layer character')
+# x2,*_ = plt.hist(orbits_agc, bins=orbit_bins, label='Layer character')
 
 # plt.hist(orbits_sp, bins=orbit_bins, label='Spectral character')
 

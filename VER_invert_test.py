@@ -1,17 +1,17 @@
 # %%
-from OH_invert_routine import invert_1d
+from VER_invert_routine import invert_1d
 import matplotlib.pyplot as plt
 import numpy as np
 import xarray as xr
 from scipy.optimize import curve_fit
-#%%
+
 # %%time
 ch = 1
 # path = '~/Documents/osiris_database/globus/StrayLightCorrected/Channel{}/'.format(ch)
 path = '~/Documents/sshfs/oso_extra_storage/StrayLightCorrected/Channel{}/'.format(ch)
-orbit = 5845#3713
-result_1d = invert_1d(orbit, ch, path, save_file=False)#, im_lst=range(10))
-
+orbit = 88312#5845#3713
+result_1d = invert_1d(orbit, ch, path, save_file=False, im_lst=range(1))
+result_1d.ver.plot(y='z')
 #%%
 
 # # %% plot VER results

@@ -11,27 +11,84 @@ import pandas as pd
 path = '/home/anqil/Documents/osiris_database/'
 filename = 'f107_index.nc'
 with xr.open_dataset(path+filename) as ds_f107:
-    # ds_f107.f107.rolling(time=40, center=True).mean().plot()
-    print(ds_f107)
+    ds_f107.f107.rolling(time=40, center=True).mean().plot()
+    # print(ds_f107)
+
+filename = 'composite_lya_index.nc'
+with xr.open_dataset(path+filename) as ds_y107:
+    ds_y107.irradiance.rolling(time=40, center=True).mean().plot(ax=plt.gca().twinx(), color='r')
+    # print(ds_y107)
 #%% open OH climatology files
-path = '/home/anqil/Documents/osiris_database/iris_oh/statistics/archive/'
-filename = 'ver_clima_{}.nc'
+path = '/home/anqil/Documents/osiris_database/iris_ver_o3/statistics/'
+filename = 'ch3_ver_clima_{}.nc'
 with xr.open_mfdataset(path+filename.format('*')) as mds:
     mds = mds.assign_coords(z=mds.z*1e-3)
     mds.z.attrs['units'] = 'km'
     fc = mds.reindex(latitude_bins=mds.latitude_bins[::-1]).sel(
-        latitude_bins=slice(90,-90)).mean_ver.plot.contourf(
+        latitude_bins=slice(90,-90)).mean_ver.plot.pcolormesh(
         y='z', x='time', row='latitude_bins', ylim=(72, 95),
-        vmin=0, cmap='viridis', robust=False, figsize=(10, 10), 
+        vmin=0, cmap='viridis', robust=True, figsize=(10, 10), 
+        add_colorbar=True,
+        cbar_kwargs=dict(label='[photon cm-3 s-1]', location='right')
 #        xticks=pd.date_range(start='2001', end='2018', freq='Y'),
         )
     plt.xticks(pd.date_range(start='2001', end='2018', freq='Y'), range(2002,2019),
         va='top', ha='left', rotation=0,
         )
-    for ax in range(len(mds.latitude_bins)):
+    for ax in range(len(fc.axes)):
         fc.axes[ax,0].grid()
 
-    # ds_f107.f107.sel(time=slice('2001', '2018')).plot(ax=fc.axes[4,0].twinx())
+    # ds_f107.f107.sel(time=slice('2002', '2017')).rolling(time=30).mean().plot(
+    #     ax=fc.axes[1,0].twinx(), color='r', alpha=0.6)
+#%% fit gauss to monthly zonal mean profiles
+from characterise_agc_routine import characterise_layer
+final = []
+for i in range(len(mds.latitude_bins)):
+    result=[]
+    for j in range(len(mds.time)):
+        print(i, j)
+        ver_z = mds.mean_ver.isel(latitude_bins=i, time=j).assign_coords(z=mds.z*1e3)
+        if all(ver_z.isnull()):
+            result.append(np.nan * np.ones(7))
+        else:
+            try:
+                result.append(characterise_layer(ver_z))
+            except:
+                result.append(np.nan * np.ones(7))
+    final.append(np.array(result))
+final = np.array(final)
+#%%
+mean_amplitude = xr.DataArray(final[:,:,0], dims=('latitude', 'time'), coords=(mds.latitude_bins, mds.time))
+mean_peak_height = xr.DataArray(final[:,:,1], dims=('latitude', 'time'), coords=(mds.latitude_bins, mds.time))
+mean_thickness = xr.DataArray(final[:,:,2], dims=('latitude', 'time'), coords=(mds.latitude_bins, mds.time))
+std_amplitude = xr.DataArray(final[:,:,3], dims=('latitude', 'time'), coords=(mds.latitude_bins, mds.time))
+std_peak_height = xr.DataArray(final[:,:,4], dims=('latitude', 'time'), coords=(mds.latitude_bins, mds.time))
+std_thickness = xr.DataArray(final[:,:,5], dims=('latitude', 'time'), coords=(mds.latitude_bins, mds.time))
+residual = xr.DataArray(final[:,:,6], dims=('latitude', 'time'), coords=(mds.latitude_bins, mds.time))
+
+mds = xr.Dataset({'mean_amplitude': mean_amplitude, 
+                'mean_peak_height': mean_peak_height, 
+                'mean_thickness': mean_thickness,
+                'std_amplitude': std_amplitude,
+                'std_peak_height': std_peak_height,
+                'std_thickness': std_thickness,
+                'mean_residual': residual})
+
+#%% some adjustments on the longterm dataset
+mds.latitude.attrs['units'] = 'deg N'
+
+data_vars_lst = 'amplitude peak_height thickness'.split()
+data_vars_mul = [1, 1e-3, 1e-3]
+data_vars_units = 'pho_cm-1_s-1 km km'.split()
+for i in range(len(data_vars_lst)):
+    for s in 'mean_{} std_{}'.split():
+        mds[s.format(data_vars_lst[i])] *= data_vars_mul[i]
+        mds[s.format(data_vars_lst[i])].attrs['units'] = data_vars_units[i] 
+#%%
+fig, ax = plt.subplots(3, 1, sharex=True, sharey=True)
+mean_amplitude.plot.contourf(x='time', robust=True, vmin=0, ax=ax[0])
+mean_peak_height.plot.contourf(x='time', robust=True, ax=ax[1])
+mean_thickness.plot.contourf(x='time', robust=True, vmin=0, ax=ax[2])
 
 #%% open agc statistics files -- time_lat
 path = '/home/anqil/Documents/osiris_database/iris_oh/statistics/'
@@ -49,6 +106,7 @@ def set_idx(ds, year):
 
 with xr.open_mfdataset(path+filename.format('*')) as mds:
     print(mds)
+
 #% some adjustments on the longterm dataset
 mds = mds.rename(dict(latitude_bins='latitude', time='time'))
 mds.latitude.attrs['units'] = 'deg N'
@@ -66,15 +124,17 @@ for i in range(len(data_vars_lst)):
 data_vars_lst = 'amplitude peak_height thickness'.split()
 vmin_lst = [1e3, 80, 2.5]
 vmax_lst = [7e3, 85, 5]
-fig, ax = plt.subplots(len(data_vars_lst)+1,1, figsize=(15,10), sharex=True, sharey=True)
+fig, ax = plt.subplots(len(data_vars_lst),1, figsize=(10,6), sharex=True, sharey=True)
 contourf_args = dict(x='time', robust=True)
 for i, var in enumerate(['mean_{}'.format(v) for v in data_vars_lst]):
-    mds[var].rename(data_vars_lst[i]).plot.contourf(
-        ax=ax[i], vmin=vmin_lst[i], vmax=vmax_lst[i], **contourf_args)
-[ax[i].set(xlabel='') for i in range(len(data_vars_lst))]
-mds.count_amplitude.rename('num. of sample').plot.contourf(ax=ax[-1], vmax=8e4, **contourf_args)
-ax[0].set(title='Mean')
-ax[-1].set(title='Sample Count')
+    mds[var].rename(data_vars_lst[i]).sel(latitude=slice(-50,50)).plot.contourf(
+        ax=ax[i], #vmin=vmin_lst[i], vmax=vmax_lst[i], 
+        **contourf_args)
+[ax[i].set(xlabel='', title=data_vars_lst[i]) for i in range(len(data_vars_lst))]
+# mds.count_amplitude.rename('num. of sample').plot.contourf(ax=ax[-1], vmax=8e4, **contourf_args)
+# ax[-1].set(title='Sample Count')
+ax[0].set(title='peak_intensity')
+
 ax_f107 = ax[0].twinx()
 p = ds_f107.f107.sel(time=slice('2001','2018')).rolling(time=40, center=True).mean().plot(ax=ax_f107, color='r')
 
@@ -97,9 +157,9 @@ for i in range(5):
 
 #%% Seasonal line plot
 fig, ax = plt.subplots(5, 1, figsize=(7,10), sharex=True, sharey=False)
-var = data_vars_lst[0]
+var = data_vars_lst[2]
 line_args = dict(x='time', alpha=0.5)
-for year in range(2001,2018):
+for year in range(2002,2018):
     ds_yearly = mds['mean_'+var].rename(var).sel(time=str(year))
     for lat_bin_idx in range(4):
         line_north, = ds_yearly.assign_coords(
@@ -123,7 +183,7 @@ for year in range(2001,2018):
     ds_yearly.assign_coords(time=ds_yearly.time.dt.month).isel(
         latitude=4).plot.line(
             **line_args, label=year, color='k', ax=ax[-1], 
-            # ylim=(1e3, 7.5e3), #peak intensity
+            # ylim=(.5e3, 7.5e3), #peak intensity
             # ylim=(78, 90), #peak height in km
             # ylim=(1, 8), #thickness in km
             )

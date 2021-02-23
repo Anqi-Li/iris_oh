@@ -104,7 +104,7 @@ def invert_1d(orbit, ch, path, save_file=False, ver_file_pattern=None, im_lst=No
 
 #%%
 if __name__ == '__main__':
-    ch = 1
+    ch = 3
     print('Channel {} !!'.format(ch))
     path_limb = '/home/anqil/Documents/sshfs/oso_extra_storage/StrayLightCorrected/Channel{}/'.format(ch)
     orbit_error = []
@@ -121,12 +121,12 @@ if __name__ == '__main__':
             ver_file_lst = glob.glob(path_ver + ver_filename_pattern.format('*'))
             if path_ver+ver_filename_pattern.format(str(orbit).zfill(6)) in ver_file_lst:
                 print('orbit {} already exist'.format(orbit))
-                orbit += 20
+                orbit += 10
             else:
                 try:
                     _ = invert_1d(orbit, ch, path_limb, save_file=True, 
                         ver_file_pattern=path_ver+ver_filename_pattern)
-                    orbit += 20
+                    orbit += 10
                     print('process orbit {}'.format(orbit))
                     
                 except FileNotFoundError:
