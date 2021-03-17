@@ -7,6 +7,63 @@ import cartopy.crs as ccrs
 import glob 
 import pandas as pd
 
+#%% open OH daily climatology files - NP SP plots
+am_pm = 'PM'
+min_sza = 96
+d_m = 'daily'
+path = '/home/anqil/Documents/osiris_database/iris_oh/statistics/'
+filename = '/{2}/{0}/{1}_{0}_{2}_ver_clima_{3}.nc'.format(min_sza, am_pm, d_m, '{}') #'daily_ver_clima_{}.nc'
+filename = '/daily_ver_clima_{}.nc'
+with xr.open_mfdataset(path+filename.format('*')) as mds:
+    mds = mds.assign_coords(z=mds.z*1e-3)
+    mds.z.attrs['units'] = 'km'
+
+    mds = mds.roll(time=0, roll_coords=False).assign_coords(
+        dict(year=mds.time.dt.year, doy=mds.time.dt.dayofyear)).set_index(
+            time=['year', 'doy']).unstack()
+    # mds.mean_ver.sel(latitude_bins=80, z=80, year=slice(2001,2009)).plot(
+    #     x='doy', hue='year')
+
+    # mds.mean_ver.sel(latitude_bins=0).plot(
+    #     x='doy', y='z', row='year', ylim=(75,90), vmin=0,
+    #     robust=True, cmap='viridis', figsize=(10,15)
+    # )
+
+    mds.mean_ver.sel(latitude_bins=0, z=85).plot.line(
+        x='doy', row='year', ylim=(3e3, 6e3), figsize=(10,15)
+    )
+#%% OH daily and resample monthly means
+am_pm = 'PM'
+min_sza = 96
+d_m = 'daily'
+path = '/home/anqil/Documents/osiris_database/iris_oh/statistics/'
+filename = '{2}/{0}/{1}_{0}_{2}_ver_clima_{3}.nc'.format(min_sza, am_pm, d_m, '{}')
+with xr.open_mfdataset(path+filename.format('*')) as mds:
+    mds = mds.assign_coords(z=mds.z*1e-3)
+    mds.z.attrs['units'] = 'km'
+    mds = mds.reindex(
+        latitude_bins=mds.latitude_bins[::-1])
+    
+    # mds.where(mds.count_ver>100).resample(time="1M").mean(
+    #     ).mean_ver.plot.contourf(
+    #         x='time', y='z', row='latitude_bins', ylim=(75,95),
+    #         vmin=0, vmax=4865, robust=True, cmap='viridis', figsize=(10,10)
+    #         )
+    # mds.where(mds.count_sza>100).resample(time="1M").mean(
+    #     ).mean_sza.plot.line(
+    #         ylim=(17.5, 22),
+    #         x='time', row='latitude_bins', figsize=(10,10)
+    #         )
+    xr.Dataset(dict(
+        upper=mds.mean_sza.where(mds.count_sza>100) + mds.std_sza, 
+        lower=mds.mean_sza.where(mds.count_sza>100) - mds.std_sza)
+        ).to_array(
+            dim='bounds', name='mean_sza'
+            ).plot.line(
+                x='time', row='latitude_bins', hue='bounds', 
+                figsize=(10,10))
+    plt.suptitle('{}, SZA>{}'.format(am_pm, min_sza), x=0.9, y=1, ha='right')
+    plt.show()
 # %% solar radio flux F10.7 index
 path = '/home/anqil/Documents/osiris_database/'
 filename = 'f107_index.nc'
@@ -18,81 +75,33 @@ filename = 'composite_lya_index.nc'
 with xr.open_dataset(path+filename) as ds_y107:
     ds_y107.irradiance.rolling(time=40, center=True).mean().plot(ax=plt.gca().twinx(), color='r')
     # print(ds_y107)
-#%% open OH climatology files
-path = '/home/anqil/Documents/osiris_database/iris_ver_o3/statistics/'
-filename = 'ch3_ver_clima_{}.nc'
+#%% open OH climatology monthly files 
+path = '/home/anqil/Documents/osiris_database/iris_oh/statistics/'
+filename = 'AM_monthly_ver_clima_{}.nc'
 with xr.open_mfdataset(path+filename.format('*')) as mds:
     mds = mds.assign_coords(z=mds.z*1e-3)
     mds.z.attrs['units'] = 'km'
-    fc = mds.reindex(latitude_bins=mds.latitude_bins[::-1]).sel(
-        latitude_bins=slice(90,-90)).mean_ver.plot.pcolormesh(
+    fc = mds.mean_ver.where(mds.count_ver>100).reindex(
+        latitude_bins=mds.latitude_bins[::-1]).sel(
+        latitude_bins=slice(80,-80)).plot(
         y='z', x='time', row='latitude_bins', ylim=(72, 95),
-        vmin=0, cmap='viridis', robust=True, figsize=(10, 10), 
+        vmin=0, cmap='viridis', robust=False, figsize=(10, 10), 
         add_colorbar=True,
-        cbar_kwargs=dict(label='[photon cm-3 s-1]', location='right')
+        # cbar_kwargs=dict(label='[photon cm-3 s-1]', location='right')
 #        xticks=pd.date_range(start='2001', end='2018', freq='Y'),
         )
-    plt.xticks(pd.date_range(start='2001', end='2018', freq='Y'), range(2002,2019),
-        va='top', ha='left', rotation=0,
-        )
-    for ax in range(len(fc.axes)):
-        fc.axes[ax,0].grid()
+    # plt.xticks(pd.date_range(start='2001', end='2018', freq='Y'), range(2002,2019),
+    #     va='top', ha='left', rotation=0,
+        # )
+    # for ax in range(len(fc.axes)):
+    #     fc.axes[ax,0].grid()
 
     # ds_f107.f107.sel(time=slice('2002', '2017')).rolling(time=30).mean().plot(
     #     ax=fc.axes[1,0].twinx(), color='r', alpha=0.6)
-#%% fit gauss to monthly zonal mean profiles
-from characterise_agc_routine import characterise_layer
-final = []
-for i in range(len(mds.latitude_bins)):
-    result=[]
-    for j in range(len(mds.time)):
-        print(i, j)
-        ver_z = mds.mean_ver.isel(latitude_bins=i, time=j).assign_coords(z=mds.z*1e3)
-        if all(ver_z.isnull()):
-            result.append(np.nan * np.ones(7))
-        else:
-            try:
-                result.append(characterise_layer(ver_z))
-            except:
-                result.append(np.nan * np.ones(7))
-    final.append(np.array(result))
-final = np.array(final)
-#%%
-mean_amplitude = xr.DataArray(final[:,:,0], dims=('latitude', 'time'), coords=(mds.latitude_bins, mds.time))
-mean_peak_height = xr.DataArray(final[:,:,1], dims=('latitude', 'time'), coords=(mds.latitude_bins, mds.time))
-mean_thickness = xr.DataArray(final[:,:,2], dims=('latitude', 'time'), coords=(mds.latitude_bins, mds.time))
-std_amplitude = xr.DataArray(final[:,:,3], dims=('latitude', 'time'), coords=(mds.latitude_bins, mds.time))
-std_peak_height = xr.DataArray(final[:,:,4], dims=('latitude', 'time'), coords=(mds.latitude_bins, mds.time))
-std_thickness = xr.DataArray(final[:,:,5], dims=('latitude', 'time'), coords=(mds.latitude_bins, mds.time))
-residual = xr.DataArray(final[:,:,6], dims=('latitude', 'time'), coords=(mds.latitude_bins, mds.time))
-
-mds = xr.Dataset({'mean_amplitude': mean_amplitude, 
-                'mean_peak_height': mean_peak_height, 
-                'mean_thickness': mean_thickness,
-                'std_amplitude': std_amplitude,
-                'std_peak_height': std_peak_height,
-                'std_thickness': std_thickness,
-                'mean_residual': residual})
-
-#%% some adjustments on the longterm dataset
-mds.latitude.attrs['units'] = 'deg N'
-
-data_vars_lst = 'amplitude peak_height thickness'.split()
-data_vars_mul = [1, 1e-3, 1e-3]
-data_vars_units = 'pho_cm-1_s-1 km km'.split()
-for i in range(len(data_vars_lst)):
-    for s in 'mean_{} std_{}'.split():
-        mds[s.format(data_vars_lst[i])] *= data_vars_mul[i]
-        mds[s.format(data_vars_lst[i])].attrs['units'] = data_vars_units[i] 
-#%%
-fig, ax = plt.subplots(3, 1, sharex=True, sharey=True)
-mean_amplitude.plot.contourf(x='time', robust=True, vmin=0, ax=ax[0])
-mean_peak_height.plot.contourf(x='time', robust=True, ax=ax[1])
-mean_thickness.plot.contourf(x='time', robust=True, vmin=0, ax=ax[2])
 
 #%% open agc statistics files -- time_lat
 path = '/home/anqil/Documents/osiris_database/iris_oh/statistics/'
-filename = 'agc_clima_{}.nc'
+filename = 'gauss_clima_{}.nc'
 def set_idx(ds, year):
     idx = [np.datetime64('{}-{}'.format(year, str(month).zfill(2))) for month in ds.time_bins.values] 
     ds = ds.assign_coords(time_bins=idx)
@@ -105,15 +114,14 @@ def set_idx(ds, year):
 # mds = xr.merge(mds)
 
 with xr.open_mfdataset(path+filename.format('*')) as mds:
-    print(mds)
+    # print(mds)
+    #% some adjustments on the longterm dataset
+    mds = mds.rename(dict(latitude_bins='latitude', time='time'))
+    mds.latitude.attrs['units'] = 'deg N'
 
-#% some adjustments on the longterm dataset
-mds = mds.rename(dict(latitude_bins='latitude', time='time'))
-mds.latitude.attrs['units'] = 'deg N'
-
-data_vars_lst = 'amplitude peak_height thickness residual'.split()
-data_vars_mul = [1, 1e-3, 1e-3, 1]
-data_vars_units = 'pho_cm-1_s-1 km km pho_cm-1_s-1'.split()
+data_vars_lst = 'peak_intensity peak_height thickness'.split()
+data_vars_mul = [1, 1e-3, 1e-3]
+data_vars_units = 'pho_cm-1_s-1 km km'.split()
 for i in range(len(data_vars_lst)):
     for s in 'mean_{} std_{}'.split():
         mds[s.format(data_vars_lst[i])] *= data_vars_mul[i]
@@ -121,7 +129,6 @@ for i in range(len(data_vars_lst)):
 
 
 #%% Longterm contourf plot
-data_vars_lst = 'amplitude peak_height thickness'.split()
 vmin_lst = [1e3, 80, 2.5]
 vmax_lst = [7e3, 85, 5]
 fig, ax = plt.subplots(len(data_vars_lst),1, figsize=(10,6), sharex=True, sharey=True)
@@ -156,45 +163,45 @@ for i in range(5):
             ax=ax_f107, color='k', alpha=0.5, ylim=(50,250))
 
 #%% Seasonal line plot
-fig, ax = plt.subplots(5, 1, figsize=(7,10), sharex=True, sharey=False)
-var = data_vars_lst[2]
+fig, ax = plt.subplots(5, 1, figsize=(7,10), sharex=True, sharey=True)
+var = data_vars_lst[0]
 line_args = dict(x='time', alpha=0.5)
 for year in range(2002,2018):
     ds_yearly = mds['mean_'+var].rename(var).sel(time=str(year))
     for lat_bin_idx in range(4):
         line_north, = ds_yearly.assign_coords(
-            time=ds_yearly.time.dt.month).roll(time=6, roll_coords=False).isel(
+            time=ds_yearly.time.dt.dayofyear).roll(time=180, roll_coords=False).isel(
                 latitude=-(lat_bin_idx+1)).plot.line(
                     **line_args, label=year, color='r', ax=ax[lat_bin_idx])
-        mds['mean_'+var].rename(var).roll(time=6, roll_coords=False).isel(
+        mds['mean_'+var].rename(var).roll(time=180, roll_coords=False).isel(
             latitude=-(lat_bin_idx+1)).groupby(
-                mds.time.dt.month).mean(...).plot.line(
-                    x='month', color='k', ls='--', ax=ax[lat_bin_idx])
+                mds.time.dt.dayofyear).mean(...).plot.line(
+                    x='dayofyear', color='k', ls='--', ax=ax[lat_bin_idx])
 
         line_south, = ds_yearly.assign_coords(
-            time=ds_yearly.time.dt.month).roll(time=0, roll_coords=False).isel(
+            time=ds_yearly.time.dt.dayofyear).roll(time=0, roll_coords=False).isel(
                 latitude=lat_bin_idx).plot.line(
                     **line_args, label=year, color='b', ax=ax[lat_bin_idx])
         mds['mean_'+var].rename(var).roll(time=0, roll_coords=False).isel(
             latitude=lat_bin_idx).groupby(
-                mds.time.dt.month).mean(...).plot.line(
-                    x='month', color='k', ls='--', ax=ax[lat_bin_idx])
+                mds.time.dt.dayofyear).mean(...).plot.line(
+                    x='dayofyear', color='k', ls='--', ax=ax[lat_bin_idx])
     # equator band
-    ds_yearly.assign_coords(time=ds_yearly.time.dt.month).isel(
+    ds_yearly.assign_coords(time=ds_yearly.time.dt.dayofyear).isel(
         latitude=4).plot.line(
             **line_args, label=year, color='k', ax=ax[-1], 
-            # ylim=(.5e3, 7.5e3), #peak intensity
+            ylim=(.5e3, 7.5e3), #peak intensity
             # ylim=(78, 90), #peak height in km
             # ylim=(1, 8), #thickness in km
             )
     mds['mean_'+var].rename(var).isel(
             latitude=4).groupby(
-                mds.time.dt.month).mean(...).plot.line(
-                    x='month', color='k', ls='--', ax=ax[-1])
+                mds.time.dt.dayofyear).mean(...).plot.line(
+                    x='dayofyear', color='k', ls='--', ax=ax[-1])
 
 [ax[i].set(xlabel='') for i in range(4)]
 # [ax[i].set(ylabel='Peak Intensity \n [photon cm-1 s-1]') for i in range(5)]
-ax[-1].set(xlabel='Month-eq to S. hemsphere',
+ax[-1].set(xlabel='dayofyear-eq to S. hemsphere',
             # xticks = [1, 4, 7, 10],
             )
 [ax[i].legend([line_north, line_south], ['N', 'S'], loc='upper right') for i in range(4)]

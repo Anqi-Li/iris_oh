@@ -22,20 +22,35 @@ import matplotlib.pyplot as plt
 # check_year = ref_year[np.array(ref_orbit).searchsorted(check_orbit)-1]
 # %% rough estimates of odin year-orbits
 orbit_year = xr.open_dataset('/home/anqil/Documents/osiris_database/odin_rough_orbit_year.nc')
+orbit_year.close()
 ref_orbit = orbit_year.orbit
 ref_year = orbit_year.year
 
-# %% Check downloaded limb files
-ch = 3
+#%%
+ch = 1
 path_limb = '/home/anqil/Documents/sshfs/oso_extra_storage/StrayLightCorrected/Channel{}/'.format(ch)
 files_limb = [f for f in listdir(path_limb) if 'nc' in f]
-orbits_downloaded = [int(s[-13:-7]) for s in files_limb]
+files_limb.sort()
+orbits_limb = [int(s[-13:-7]) for s in files_limb]
+orbits_save_year_idx = []
+for i in range(len(ref_orbit)):
+    orbits_save_year_idx.append(abs(np.array(orbits_limb)-ref_orbit[i].values).argmin())
+
+with xr.open_mfdataset([path_limb+f for f in np.array(files_limb)[orbits_save_year_idx]]) as mds:
+    print(mds)
+    
+# %% Check downloaded limb files
+ch = 1
+path_limb = '/home/anqil/Documents/sshfs/oso_extra_storage/StrayLightCorrected/Channel{}/'.format(ch)
+files_limb = [f for f in listdir(path_limb) if 'nc' in f]
+orbits_limb = [int(s[-13:-7]) for s in files_limb]
 
 # % Check inverted VER files
 if ch == 3:
     path_ver = '/home/anqil/Documents/sshfs/oso_extra_storage/VER/Channel3/nightglow/'
 elif ch == 1:
     path_ver = '/home/anqil/Documents/sshfs/oso_extra_storage/VER/oh/'
+    # path_ver = '/home/anqil/Documents/sshfs/oso_extra_storage/VER/Channel1/nightglow/'
 
 files_ver = [f for f in listdir(path_ver) if 'nc' in f]
 orbits_ver = [int(s[-9:-3]) for s in files_ver]
@@ -54,16 +69,19 @@ orbits_agc = [int(s[-9:-3]) for s in files_agc]
 # % visualise
 # orbit_bins = np.linspace(3e3, 4e4)
 orbit_bins = ref_orbit
-x0,*_ = plt.hist(orbits_downloaded, bins=orbit_bins, label='Downloaded to OSO')
-x1,*_ = plt.hist(orbits_ver, bins=orbit_bins, label='Inverted VER')
-# x2,*_ = plt.hist(orbits_agc, bins=orbit_bins, label='Layer character')
+x0,*_ = plt.hist(orbits_limb, bins=orbit_bins, label='Limb radiance', color='C0')
+x1,*_ = plt.hist(orbits_ver, bins=orbit_bins, label='Inverted VER', color='C3')
 
+# x2,*_ = plt.hist(orbits_agc, bins=orbit_bins, label='Layer character')
 # plt.hist(orbits_sp, bins=orbit_bins, label='Spectral character')
 
-plt.step(orbit_bins[1:], x0*0.05, label='5% of downloaded', where='pre')
+plt.step(orbit_bins[1:], x0*0.5, label='50% of limb', where='pre', color='k', ls=':')
+
 plt.legend()
-plt.xticks(ref_orbit, ref_year.values, rotation=40)
-plt.ylabel('Num. of orbits processed')
+plt.xticks(ref_orbit[1:], ref_year.values[1:], rotation=40)
+plt.ylabel('Num. of orbits available')
+plt.xlabel('Year')
+
 plt.show()
 
 # %%
