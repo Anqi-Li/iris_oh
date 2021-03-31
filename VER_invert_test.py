@@ -12,6 +12,7 @@ path = '~/Documents/sshfs/oso_extra_storage/StrayLightCorrected/Channel{}/'.form
 orbit = 88312#5845#3713
 result_1d = invert_1d(orbit, ch, path, save_file=False, im_lst=range(1))
 result_1d.ver.plot(y='z')
+
 #%%
 
 # # %% plot VER results

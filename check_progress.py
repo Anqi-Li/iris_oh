@@ -27,17 +27,17 @@ ref_orbit = orbit_year.orbit
 ref_year = orbit_year.year
 
 #%%
-ch = 1
-path_limb = '/home/anqil/Documents/sshfs/oso_extra_storage/StrayLightCorrected/Channel{}/'.format(ch)
-files_limb = [f for f in listdir(path_limb) if 'nc' in f]
-files_limb.sort()
-orbits_limb = [int(s[-13:-7]) for s in files_limb]
-orbits_save_year_idx = []
-for i in range(len(ref_orbit)):
-    orbits_save_year_idx.append(abs(np.array(orbits_limb)-ref_orbit[i].values).argmin())
+# ch = 1
+# path_limb = '/home/anqil/Documents/sshfs/oso_extra_storage/StrayLightCorrected/Channel{}/'.format(ch)
+# files_limb = [f for f in listdir(path_limb) if 'nc' in f]
+# files_limb.sort()
+# orbits_limb = [int(s[-13:-7]) for s in files_limb]
+# orbits_save_year_idx = []
+# for i in range(len(ref_orbit)):
+#     orbits_save_year_idx.append(abs(np.array(orbits_limb)-ref_orbit[i].values).argmin())
 
-with xr.open_mfdataset([path_limb+f for f in np.array(files_limb)[orbits_save_year_idx]]) as mds:
-    print(mds)
+# with xr.open_mfdataset([path_limb+f for f in np.array(files_limb)[orbits_save_year_idx]]) as mds:
+#     print(mds)
     
 # %% Check downloaded limb files
 ch = 1
@@ -50,14 +50,14 @@ if ch == 3:
     path_ver = '/home/anqil/Documents/sshfs/oso_extra_storage/VER/Channel3/nightglow/'
 elif ch == 1:
     path_ver = '/home/anqil/Documents/sshfs/oso_extra_storage/VER/oh/'
-    # path_ver = '/home/anqil/Documents/sshfs/oso_extra_storage/VER/Channel1/nightglow/'
+    path_ver = '/home/anqil/Documents/sshfs/oso_extra_storage/VER/Channel1/nightglow/'
 
 files_ver = [f for f in listdir(path_ver) if 'nc' in f]
 orbits_ver = [int(s[-9:-3]) for s in files_ver]
 
 path_char = '/home/anqil/Documents/osiris_database/iris_oh/'
 # % Check airglow character files
-path_agc = path_char + 'airglow_character/' #+ 'archive/'
+path_agc = path_char + 'gauss_character/A_filtered/' #+ 'archive/'
 files_agc = [f for f in listdir(path_agc) if 'nc' in f]
 orbits_agc = [int(s[-9:-3]) for s in files_agc]
 
@@ -69,13 +69,14 @@ orbits_agc = [int(s[-9:-3]) for s in files_agc]
 # % visualise
 # orbit_bins = np.linspace(3e3, 4e4)
 orbit_bins = ref_orbit
-x0,*_ = plt.hist(orbits_limb, bins=orbit_bins, label='Limb radiance', color='C0')
-x1,*_ = plt.hist(orbits_ver, bins=orbit_bins, label='Inverted VER', color='C3')
+hist_args = dict(histtype='step', bins=orbit_bins,)
+x0,*_ = plt.hist(orbits_limb, **hist_args, label='Limb radiance', color='k', alpha=0.3)
+x1,*_ = plt.hist(orbits_ver, **hist_args, label='Inverted VER', color='C3', alpha=0.8)
 
-# x2,*_ = plt.hist(orbits_agc, bins=orbit_bins, label='Layer character')
-# plt.hist(orbits_sp, bins=orbit_bins, label='Spectral character')
+x2,*_ = plt.hist(orbits_agc, **hist_args, label='Layer character', color='k')
+# plt.hist(orbits_sp, **hist_args, label='Spectral character')
 
-plt.step(orbit_bins[1:], x0*0.5, label='50% of limb', where='pre', color='k', ls=':')
+# plt.step(orbit_bins[1:], x0*0.5, label='50% of limb', where='pre', color='k', ls=':')
 
 plt.legend()
 plt.xticks(ref_orbit[1:], ref_year.values[1:], rotation=40)
@@ -84,4 +85,34 @@ plt.xlabel('Year')
 
 plt.show()
 
-# %%
+# %% make monthly files
+import pandas as pd
+from astropy.time import Time
+
+time_stamp = pd.date_range(start='2007-12-31 23:59:59', end='2008-12-31 23:59:59', freq='M')
+with xr.open_dataset('~/Documents/osiris_database/odin_rough_orbit.nc') as rough_orbit:
+    rough_orbit = rough_orbit.rename({'mjd':'time'}).assign(
+        time=Time(rough_orbit.mjd, format='mjd').datetime64
+        ).interp(time=time_stamp).astype(int).orbit
+
+def remove_duplicate(ds):
+    ds.sel(time=~ds.indexes['time'].duplicated())
+    return ds
+# i = 0
+files_ver = [f for f in listdir(path_ver) if 'nc' in f]
+
+for i in [2, 8]:
+    print(i+1)
+    try:
+        with xr.open_mfdataset(
+            [path_ver + f for f in files_ver 
+            if int(f[-9:-3]) in range(*tuple(
+                rough_orbit.isel(time=slice(i,i+2)).values)
+                )], preprocess=remove_duplicate) as mds:
+            mds.to_netcdf(
+                '~/Documents/osiris_database/iris_oh/VER/iri_ch1_2008{}.nc'.format(
+                str(i+1).zfill(2)
+                ))
+    except:
+        # pass
+        raise

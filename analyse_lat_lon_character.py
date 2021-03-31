@@ -76,12 +76,12 @@ with xr.open_dataset(path+filename) as ds_y107:
     ds_y107.irradiance.rolling(time=40, center=True).mean().plot(ax=plt.gca().twinx(), color='r')
     # print(ds_y107)
 #%% open OH climatology monthly files 
-path = '/home/anqil/Documents/osiris_database/iris_oh/statistics/'
-filename = 'AM_monthly_ver_clima_{}.nc'
+path = '/home/anqil/Documents/osiris_database/iris_oh/statistics/monthly/'
+filename = 'All_96_monthly_ver_clima_{}.nc'
 with xr.open_mfdataset(path+filename.format('*')) as mds:
     mds = mds.assign_coords(z=mds.z*1e-3)
     mds.z.attrs['units'] = 'km'
-    fc = mds.mean_ver.where(mds.count_ver>100).reindex(
+    fc = mds.mean_ver.where(mds.count_ver>0).reindex(
         latitude_bins=mds.latitude_bins[::-1]).sel(
         latitude_bins=slice(80,-80)).plot(
         y='z', x='time', row='latitude_bins', ylim=(72, 95),

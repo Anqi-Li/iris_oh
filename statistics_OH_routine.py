@@ -111,7 +111,7 @@ if __name__ == '__main__':
 
         print('saving VER year {}'.format(year))
         path = '/home/anqil/Documents/osiris_database/iris_oh/statistics/daily/'
-        filename = '{}_{}_daily_ver_clima_{}.nc'.format(am_pm, sza_min, year)
+        filename = '{}_{}_daily_halfglobe_ver_clima_{}.nc'.format(am_pm, sza_min, year)
         xr.merge([mean_year, std_year, count_year]).assign_attrs(
             am_pm=am_pm, sza_min=sza_min).to_netcdf(
             path+filename, mode='w')
@@ -217,7 +217,7 @@ if __name__ == '__main__':
 
     # clima_OH(2013)
     year_lst = list(range(2001,2018))
-    with Pool(processes=8) as p:
+    with Pool(processes=6) as p:
         p.map(clima_OH, year_lst)
     # for year_int in year_lst:
     #     clima_OH(year_int)
