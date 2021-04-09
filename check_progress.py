@@ -49,8 +49,8 @@ orbits_limb = [int(s[-13:-7]) for s in files_limb]
 if ch == 3:
     path_ver = '/home/anqil/Documents/sshfs/oso_extra_storage/VER/Channel3/nightglow/'
 elif ch == 1:
-    path_ver = '/home/anqil/Documents/sshfs/oso_extra_storage/VER/oh/'
-    path_ver = '/home/anqil/Documents/sshfs/oso_extra_storage/VER/Channel1/nightglow/'
+    # path_ver = '/home/anqil/Documents/sshfs/oso_extra_storage/VER/oh/'
+    path_ver = '/home/anqil/Documents/sshfs/oso_extra_storage/VER/Channel1/nightglow/4pi/'
 
 files_ver = [f for f in listdir(path_ver) if 'nc' in f]
 orbits_ver = [int(s[-9:-3]) for s in files_ver]
@@ -86,33 +86,33 @@ plt.xlabel('Year')
 plt.show()
 
 # %% make monthly files
-import pandas as pd
-from astropy.time import Time
+# import pandas as pd
+# from astropy.time import Time
 
-time_stamp = pd.date_range(start='2007-12-31 23:59:59', end='2008-12-31 23:59:59', freq='M')
-with xr.open_dataset('~/Documents/osiris_database/odin_rough_orbit.nc') as rough_orbit:
-    rough_orbit = rough_orbit.rename({'mjd':'time'}).assign(
-        time=Time(rough_orbit.mjd, format='mjd').datetime64
-        ).interp(time=time_stamp).astype(int).orbit
+# time_stamp = pd.date_range(start='2007-12-31 23:59:59', end='2008-12-31 23:59:59', freq='M')
+# with xr.open_dataset('~/Documents/osiris_database/odin_rough_orbit.nc') as rough_orbit:
+#     rough_orbit = rough_orbit.rename({'mjd':'time'}).assign(
+#         time=Time(rough_orbit.mjd, format='mjd').datetime64
+#         ).interp(time=time_stamp).astype(int).orbit
 
-def remove_duplicate(ds):
-    ds.sel(time=~ds.indexes['time'].duplicated())
-    return ds
-# i = 0
-files_ver = [f for f in listdir(path_ver) if 'nc' in f]
+# def remove_duplicate(ds):
+#     ds.sel(time=~ds.indexes['time'].duplicated())
+#     return ds
+# # i = 0
+# files_ver = [f for f in listdir(path_ver) if 'nc' in f]
 
-for i in [2, 8]:
-    print(i+1)
-    try:
-        with xr.open_mfdataset(
-            [path_ver + f for f in files_ver 
-            if int(f[-9:-3]) in range(*tuple(
-                rough_orbit.isel(time=slice(i,i+2)).values)
-                )], preprocess=remove_duplicate) as mds:
-            mds.to_netcdf(
-                '~/Documents/osiris_database/iris_oh/VER/iri_ch1_2008{}.nc'.format(
-                str(i+1).zfill(2)
-                ))
-    except:
-        # pass
-        raise
+# for i in [2, 8]:
+#     print(i+1)
+#     try:
+#         with xr.open_mfdataset(
+#             [path_ver + f for f in files_ver 
+#             if int(f[-9:-3]) in range(*tuple(
+#                 rough_orbit.isel(time=slice(i,i+2)).values)
+#                 )], preprocess=remove_duplicate) as mds:
+#             mds.to_netcdf(
+#                 '~/Documents/osiris_database/iris_oh/VER/iri_ch1_2008{}.nc'.format(
+#                 str(i+1).zfill(2)
+#                 ))
+#     except:
+#         # pass
+#         raise

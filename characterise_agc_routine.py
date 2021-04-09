@@ -191,5 +191,5 @@ if __name__ == '__main__':
             fun(f)
 
     with Pool(processes=8) as p:
-        p.map(process_year, range(2007, 2013))
+        p.map(process_year, range(2001, 2018))
 # %%
