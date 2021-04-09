@@ -424,7 +424,7 @@ with xr.open_mfdataset([path+filename.format(y) for y in years]) as mds:
     mds = mds.resample(time='1M').mean()
 
     mds['mean_peak_intensity'] *= 4*np.pi
-    mds['mean_peak_intensity'].attrs['units'] = 'cm-3 s-1'
+    mds['mean_peak_intensity'].attrs['units'] = 'photons cm-3 s-1'
     # mds['mean_peak_height'] *= 1e-3
     mds['mean_peak_height'].attrs['units'] = 'm'
     # mds['mean_peak_sigma'] *= 1e-3
@@ -469,7 +469,7 @@ with xr.open_mfdataset([path+filename.format(y) for y in years]) as mds:
             ylabel='[{}]'.format(mds['mean_{}'.format(d)].units), 
             title='{}$^\circ$ - {}$^\circ$'.format(-10, 10),
             )
-    [[ax[i,j].ticklabel_format(axis='y', style='sci', scilimits=(3,3)) for i in range(ax.shape[0]))] for j in range(ax.shape[1])]
+    [[ax[i,j].ticklabel_format(axis='y', style='sci', scilimits=(3,3)) for i in range(ax.shape[0])] for j in range(ax.shape[1])]
     ax[0, 0].set(ylim=(0,1.8e5))
     # ax[0, 1].set(ylim=(80, 90))
     # ax[0, 2].set(ylim=())
