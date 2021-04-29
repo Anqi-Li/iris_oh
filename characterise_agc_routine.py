@@ -193,3 +193,11 @@ if __name__ == '__main__':
     with Pool(processes=8) as p:
         p.map(process_year, range(2001, 2018))
 # %%
+# ver_path = '/home/anqil/Documents/sshfs/oso_extra_storage/VER/Channel1/nightglow/'
+# # ver_file_lst = glob.glob(ver_path + '*nc')
+# orbit_num = '007106'
+# ver_file = ver_path + 'iri_ch1_ver_{}.nc'.format(orbit_num)
+# gauss_path = '/home/anqil/Documents/osiris_database/iris_oh/'
+# gauss_filename_pattern = 'gauss_character/A_filtered/gauss_{}.nc'
+
+# process_file(ver_file, save_file=True, agc_file_pattern=gauss_path + gauss_filename_pattern)

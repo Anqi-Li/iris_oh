@@ -27,6 +27,34 @@ def zonal_average(mds, var=None, dlat=20):
 
     return mean, std, count
 
+def lat_lon_average(mds, var=None, dlat=10, dlon=10):
+    latitude_bins = np.arange(-90, 90+dlat, dlat)
+    latitude_labels = latitude_bins[1:]-dlat/2
+    longitude_bins = np.arange(0, 360+dlon, dlon)
+    longitude_labels = longitude_bins[1:]-dlon/2
+
+    
+    if var == None:
+        lat_groups = mds.groupby_bins(
+            mds.latitude, bins=latitude_bins, labels=latitude_labels)
+        
+        reduce_args = dict(dim='time', keep_attrs=True)
+        lat,mean,std,count = [],[],[],[]
+        for lat_label, ds in lat_groups:
+            lat.append(lat_label)
+            groups = ds.groupby_bins(ds.longitude, bins=longitude_bins, labels=longitude_labels)
+            mean.append(groups.mean(**reduce_args).rename({k: 'mean_{}'.format(k) for k in mds.keys()}))
+            std.append(groups.std(**reduce_args).rename({k: 'std_{}'.format(k) for k in mds.keys()}))
+            count.append(groups.count(**reduce_args).rename({k: 'count_{}'.format(k) for k in mds.keys()}))
+
+        def concat_lat(ds, lat_label):
+            return xr.concat(ds, dim='latitude_bins').assign_coords(latitude_bins=lat_label).sortby('latitude_bins')
+        mean = concat_lat(mean, lat)
+        std = concat_lat(std, lat)
+        count = concat_lat(count, lat)
+
+    return mean, std, count
+
 #%%
 if __name__ == '__main__':
     freq = 'D'
@@ -118,7 +146,6 @@ if __name__ == '__main__':
     #         path+filename, mode='w')
 
     def clima_agc(year_int):
-        # year_int = 2001
         year = str(year_int)
         if year_int > 2001:
             rough_orbit_in_previous_year = rough_orbit.sel(time=str(int(year)-1)).isel(time=-1)
@@ -129,7 +156,6 @@ if __name__ == '__main__':
 
         mean_year, std_year, count_year = [], [], []
         cond_intensity_year, cond_sigma_year, cond_height_year, cond_chisq_year = [], [], [], []
-        cond_verz_year = []
         cond_sza_year = []
         time_coord = []
         # for time_idx in range(len(rough_orbit_in_year.time)-1, len(rough_orbit_in_year.time)):
@@ -139,53 +165,38 @@ if __name__ == '__main__':
                 orbits_agc = [f for f in files_agc 
                     if int(f[-9:-3]) > rough_orbit_in_previous_year.orbit 
                         and int(f[-9:-3]) < rough_orbit_in_year.orbit.isel(time=time_idx)]
-                # orbits_ver = [f for f in files_ver 
-                #     if int(f[-9:-3]) > rough_orbit_in_previous_year.orbit 
-                #         and int(f[-9:-3]) < rough_orbit_in_year.orbit.isel(time=time_idx)]
+                
             else:
                 orbits_agc = [f for f in files_agc 
                     if int(f[-9:-3]) > rough_orbit_in_year.orbit.isel(time=time_idx-1) 
                         and int(f[-9:-3]) < rough_orbit_in_year.orbit.isel(time=time_idx)]
-                # orbits_ver = [f for f in files_ver 
-                #     if int(f[-9:-3]) > rough_orbit_in_year.orbit.isel(time=time_idx-1) 
-                #         and int(f[-9:-3]) < rough_orbit_in_year.orbit.isel(time=time_idx)]
-
+                
             try:
                 with xr.open_mfdataset([path_agc+f for f in orbits_agc]) as agc_ds:
                     agc_ds = agc_ds.sel(time=~agc_ds.indexes['time'].duplicated())
-                    # with xr.open_mfdataset([path_ver+f for f in orbits_ver]) as ver_ds:
-                    #     ver_ds = ver_ds.reindex(time=agc_ds.time)
-                    #     # print(ver_ds)
-                    # #%% filter low quality ver data
-                    # cond_ver = ((ver_ds.A_peak>0.8)*(
-                    #             ver_ds.mr>0.8)*(
-                    #             ver_ds.error2_retrieval<3e6)
-                    #             ).rename('cond_ver')
-                    # cond_min_z = ver_ds.z.where(cond_ver).min(dim='z')<70e3
-                    # cond_max_z = ver_ds.z.where(cond_ver).max(dim='z')>90e3
-                    # cond_verz = (cond_min_z*cond_max_z).rename('cond_verz')
+                    
                     #%% filter unphysical agc data
                     sza_min = 96
                     cond_sza = (agc_ds.sza>sza_min).rename('cond_sza')
+                    cond_lst = agc_ds.apparent_solar_time>12 ## choose AM PM
                     cond_intensity = np.logical_and(agc_ds.peak_intensity<1e6, agc_ds.peak_intensity>0).rename('cond_intensity')
                     cond_sigma = np.logical_and(agc_ds.peak_sigma<20e3, agc_ds.peak_sigma>0).rename('cond_sigma')
                     cond_height = np.logical_and(agc_ds.peak_height<100e3, agc_ds.peak_height>60e3).rename('cond_height')
                     cond_chisq = (agc_ds.chisq<10).rename('cond_chisq')
                     agc_ds = agc_ds.where(#cond_min_z * cond_max_z 
-                        cond_intensity * cond_sigma * cond_height * cond_chisq * cond_sza) 
+                        cond_intensity * cond_sigma * cond_height * cond_chisq * cond_sza * cond_lst) 
 
-                    mean, std, count = zonal_average(agc_ds, var=None)
+                    mean, std, count = lat_lon_average(agc_ds, var=None)
 
                 mean_year.append(mean)
                 std_year.append(std)
                 count_year.append(count)
                 time_coord.append(rough_orbit_in_year.time[time_idx].values)
-                # cond_verz_year.append(cond_verz)
-                cond_sza_year.append(cond_sza)
-                cond_intensity_year.append(cond_intensity)
-                cond_height_year.append(cond_height)
-                cond_sigma_year.append(cond_sigma)
-                cond_chisq_year.append(cond_chisq)
+                # cond_sza_year.append(cond_sza)
+                # cond_intensity_year.append(cond_intensity)
+                # cond_height_year.append(cond_height)
+                # cond_sigma_year.append(cond_sigma)
+                # cond_chisq_year.append(cond_chisq)
 
             except OSError:
                 pass
@@ -197,30 +208,28 @@ if __name__ == '__main__':
         std_year = xr.concat(std_year, dim='time').assign_coords(time=time_coord)
         count_year = xr.concat(count_year, dim='time').assign_coords(time=time_coord)
 
-        path = '/home/anqil/Documents/osiris_database/iris_oh/statistics/'
-        filename = 'gauss_{}_{}_{}.nc'.format(freq, sza_min, year)
+        path = '/home/anqil/Documents/osiris_database/iris_oh/statistics/gauss/PM/'
+        filename = 'gauss_PM_geo_{}_{}_{}.nc'.format(freq, sza_min, year)
         mean_year.to_netcdf(path+filename, mode='w')
         std_year.to_netcdf(path+filename, mode='a')
         count_year.to_netcdf(path+filename, mode='a')
 
-        print('saving filterin year {}'.format(year))
-        # cond_verz_year = xr.concat(cond_verz_year, dim='time')
-        cond_sza_year = xr.concat(cond_sza_year, dim='time')
-        cond_intensity_year = xr.concat(cond_intensity_year, dim='time')#.assign_coords(time=time_coord)
-        cond_height_year = xr.concat(cond_height_year, dim='time')#.assign_coords(time=time_coord)
-        cond_sigma_year = xr.concat(cond_sigma_year, dim='time')#.assign_coords(time=time_coord)
-        cond_chisq_year = xr.concat(cond_chisq_year, dim='time')#.assign_coords(time=time_coord)
+        # print('saving filterin year {}'.format(year))
+        # cond_sza_year = xr.concat(cond_sza_year, dim='time')
+        # cond_intensity_year = xr.concat(cond_intensity_year, dim='time')#.assign_coords(time=time_coord)
+        # cond_height_year = xr.concat(cond_height_year, dim='time')#.assign_coords(time=time_coord)
+        # cond_sigma_year = xr.concat(cond_sigma_year, dim='time')#.assign_coords(time=time_coord)
+        # cond_chisq_year = xr.concat(cond_chisq_year, dim='time')#.assign_coords(time=time_coord)
     
-        path = '/home/anqil/Documents/osiris_database/iris_oh/statistics/'
-        filename = 'filterin_{}_{}_{}.nc'.format(freq, sza_min, year)
-        cond_intensity_year.to_netcdf(path+filename, mode='w')
-        cond_height_year.to_netcdf(path+filename, mode='a')
-        cond_sigma_year.to_netcdf(path+filename, mode='a')
-        cond_chisq_year.to_netcdf(path+filename, mode='a')
-        # cond_verz_year.to_netcdf(path+filename, mode='a')
+        # path = '/home/anqil/Documents/osiris_database/iris_oh/statistics/gauss/filterin/'
+        # filename = 'filterin_PM_geo_{}_{}_{}.nc'.format(freq, sza_min, year)
+        # cond_intensity_year.to_netcdf(path+filename, mode='w')
+        # cond_height_year.to_netcdf(path+filename, mode='a')
+        # cond_sigma_year.to_netcdf(path+filename, mode='a')
+        # cond_chisq_year.to_netcdf(path+filename, mode='a')
 
     # clima_OH(2013)
-    year_lst = list(range(2007,2013))
+    year_lst = list(range(2001,2004))
     # with Pool(processes=6) as p:
     #     p.map(clima_OH, year_lst)
     # for year_int in year_lst:

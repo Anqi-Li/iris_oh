@@ -70,7 +70,7 @@ if __name__ == '__main__':
 
                     ds_ver.to_netcdf(
                         dir_save.format(ch, orbit_num))
-
-    with Pool(processes=8) as p:
-        p.map(fun, range(2009, 2018))
+    year_lst = list(range(2008, 2018))
+    with Pool(processes=len(year_lst)) as p:
+        p.map(fun, year_lst)
 # %%

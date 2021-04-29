@@ -1,5 +1,4 @@
 #%%
-import enum
 import numpy as np
 import xarray as xr
 import glob
@@ -7,6 +6,22 @@ from os import listdir
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm, NoNorm, Normalize
 from scipy.interpolate import interp1d
+
+def haversine(lon1, lat1, lon2, lat2):
+    """
+    Calculate the great circle distance between two points 
+    on the earth (specified in decimal degrees)
+    """
+    # convert decimal degrees to radians 
+    lon1, lat1, lon2, lat2 = map(lambda x: x*np.pi/180, [lon1, lat1, lon2, lat2])
+
+    # haversine formula 
+    dlon = lon2 - lon1 
+    dlat = lat2 - lat1 
+    a = np.sin(dlat/2)**2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon/2)**2
+    c = 2 * np.arcsin(np.sqrt(a)) 
+    r = 6371 # Radius of earth in kilometers. Use 3956 for miles
+    return c * r
 
 orbit = 10122
 ch = 1
@@ -17,6 +32,7 @@ filename_limb = 'ir_slc_{}_ch{}.nc'.format(str(orbit).zfill(6), ch)
 ds_limb = xr.open_dataset(path_limb+filename_limb).load()
 ds_limb.close()
 
+#%%
 alts = np.arange(40e3, 110e3, 1.5e3)
 ir_altitude = []
 error_altitude = []
@@ -40,23 +56,6 @@ ds.z.attrs['units']='m'
 ds.to_netcdf('ir_orbit_sample_{}.nc'.format(str(orbit).zfill(6)), mode='w')
 
 #%%
-def haversine(lon1, lat1, lon2, lat2):
-    """
-    Calculate the great circle distance between two points 
-    on the earth (specified in decimal degrees)
-    """
-    # convert decimal degrees to radians 
-    lon1, lat1, lon2, lat2 = map(lambda x: x*np.pi/180, [lon1, lat1, lon2, lat2])
-
-    # haversine formula 
-    dlon = lon2 - lon1 
-    dlat = lat2 - lat1 
-    a = np.sin(dlat/2)**2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon/2)**2
-    c = 2 * np.arcsin(np.sqrt(a)) 
-    r = 6371 # Radius of earth in kilometers. Use 3956 for miles
-    return c * r
-
-
 ds = xr.open_dataset('ir_orbit_sample_{}.nc'.format(str(orbit).zfill(6))).load()
 ds.close()
 
@@ -96,7 +95,7 @@ ax[-1,0].set(xlabel='Horizontal distance long the orbit [km]')
 ax[2,1].set_axis_off()
 
 # %% open VER file
-path_ver = '/home/anqil/Documents/sshfs/oso_extra_storage/VER/Channel1/nightglow/'
+path_ver = '/home/anqil/Documents/sshfs/oso_extra_storage/VER/Channel1/nightglow/4pi/'
 filename_ver = 'iri_ch{}_ver_{}.nc'.format(ch, str(orbit).zfill(6), ch)
 
 ds_ver = xr.open_dataset(path_ver+filename_ver)
@@ -107,9 +106,9 @@ d = haversine(ds_ver.longitude[0], ds_ver.latitude[0], ds_ver.longitude, ds_ver.
 ds_ver = ds_ver.update({'d' : (['time'], d, dict(units='km'))})
 
 # be careful here!
-ds_ver['error2_retrieval'] *= (np.pi*4)**2
-ds_ver['error2_smoothing'] *= (np.pi*4)**2
-ds_ver['ver'] *= np.pi*4
+# ds_ver['error2_retrieval'] *= (np.pi*4)**2
+# ds_ver['error2_smoothing'] *= (np.pi*4)**2
+# ds_ver['ver'] *= np.pi*4
 ds_ver_4pi = ds_ver.copy()
 
 # %% VER_histogram.png
@@ -366,7 +365,7 @@ with xr.open_mfdataset(path+filename.format('*')) as mds:
     mds['std_ver'] *= np.pi*4/0.55
     mds = mds.reindex(latitude_bins=mds.latitude_bins[::-1])
     #resample into monthly mean
-    mds = mds.where(mds.count_ver>100).resample(time="1M").mean()
+    mds = mds.where(mds.count_ver>50).resample(time="1M").mean()
 
     #stack years
     mds = mds.assign_coords(
@@ -400,7 +399,9 @@ with xr.open_mfdataset(path+filename.format('*')) as mds:
         ax[i,0].set(title='{} - {}$^\circ S$'.format(lat-10, lat+10), xlabel='', xticklabels='')
         ax[i,1].set(title='{} - {}$^\circ N$'.format(lat-10, lat+10), xlabel='', xticklabels='')
     c = mds_sh.sel(latitude_bins=0).mean_ver.plot.contourf(ax=ax[-1,0], **plt_args)#, cbar_kwargs=cbar_kwargs)
-    ax[-1,0].set(xlabel='Month')
+    ax[-1,0].set(title='{}$^\circ N$ - {}$^\circ S$'.format(10, 10), 
+            xlabel='Month')
+    # ax[-1,0].set(xlabel='Month')
     ax[-2,1].set(xlabel='Month', xticklabels='6 8 10 12 2 4 6'.split())
     for i in range(5):
         for j in range(2):
@@ -415,45 +416,44 @@ with xr.open_mfdataset(path+filename.format('*')) as mds:
     # ax[-1,1].ticklabel_format(axis='x', style='sci', scilimits=(3,3))
     ax[-1,1].set_box_aspect(1/7)
     
-# %%
-path = '/home/anqil/Documents/osiris_database/iris_oh/statistics/'
-filename = 'gauss_D_{}.nc'
-years = list(range(2001, 2008)) + [2010, 2011] + list(range(2013, 2018))
+# %% Monthly Gauss parameters
+path = '/home/anqil/Documents/osiris_database/iris_oh/statistics/gauss/ALL/'
+filename = 'gauss_ALL_D_96_{}.nc'
+# years = list(range(2001, 2008)) + list(range(2009, 2018))
+years = list(range(2001,2018))# + list(range(2012,2018))
 
 with xr.open_mfdataset([path+filename.format(y) for y in years]) as mds:
-    mds = mds.resample(time='1M').mean()
-
+    
     mds['mean_peak_intensity'] *= 4*np.pi
     mds['mean_peak_intensity'].attrs['units'] = 'photons cm-3 s-1'
-    # mds['mean_peak_height'] *= 1e-3
     mds['mean_peak_height'].attrs['units'] = 'm'
-    # mds['mean_peak_sigma'] *= 1e-3
     mds['mean_peak_sigma'].attrs['units'] = 'm'
     mds['mean_thickness'] = 2*mds['mean_peak_sigma']
     mds['mean_thickness'].attrs['units'] = 'm'
-   
+    mds['std_thickness'] = 2*mds['std_peak_sigma']
+    
+    # mds = mds.where(mds.count_sza>10).resample(time='1M').mean(keep_attrs=True)
+    mds = mds.where(mds.count_sza>10).rolling(time=30, min_periods=10, center=True).mean('time')
+
     mds = mds.assign_coords(
-        dict(year=mds.time.dt.year, month=mds.time.dt.month)).set_index(
-        time=['year', 'month']).unstack()
+        dict(year=mds.time.dt.year, doy=mds.time.dt.dayofyear)).set_index(
+        time=['year', 'doy']).unstack()
 
     #shift NH 6 months
-    mds_nh = mds.sel(latitude_bins=slice(20,80)).roll(month=6, roll_coords=False)
+    mds_nh = mds.sel(latitude_bins=slice(20,80)).roll(doy=180, roll_coords=False)
     mds_sh = mds.sel(latitude_bins=slice(-80,0))
 
-    # fig, ax = plt.subplots(5, 1, figsize=(7,10), sharex=True, sharey=True, gridspec_kw=dict(hspace=0.5))
-    # plot_args = dict(x='month', hue='year', ylim=(0, 1.8e5), add_legend=False, alpha=0.5)
-    # for i,lat in enumerate(range(80,0,-20)):
-    #     l_nh = mds_nh.sel(latitude_bins=lat).mean_peak_intensity.plot.line(ax=ax[i], c='r', **plot_args)
-    #     l_sh = mds_sh.sel(latitude_bins=-lat).mean_peak_intensity.plot.line(ax=ax[i], c='b', **plot_args)
-    #     ax[i].set(ylabel='', xlabel='', title='{}$^\circ$ - {}$^\circ$'.format(lat-10, lat+10))
-    #     ax[i].legend([l_nh[0], l_sh[0]], ['NH', 'SH'], loc='upper right')
-    # mds_sh.sel(latitude_bins=0).mean_peak_intensity.plot.line(ax=ax[-1], c='k', **plot_args)
-    # ax[-1].set(xlabel='Month-eq to SH', ylabel='', title='{}$^\circ$ - {}$^\circ$'.format(-10, 10))
-
-    data_vars = 'peak_intensity peak_height thickness'.split()
+#%%
+    # years_ssw = [2002, 2004, 2006, 2009, 2012, 2013]
+    data_vars = 'peak_intensity peak_height peak_sigma'.split()
+    data_sym = '$V_{peak}$ $z_{peak}$ $2\sigma$'.split()
+    # data_vars = 'apparent_solar_time sza'.split()
+    # data_sym = 'LST SZA'.split()
     fig, ax = plt.subplots(5, len(data_vars), figsize=(15,10), sharex=True, sharey='col', gridspec_kw=dict(hspace=0.5))
-    plot_args = dict(x='month', hue='year', add_legend=False, alpha=0.5)
+    plot_args = dict(x='doy', hue='year', add_legend=False, alpha=0.3)
     for j,d in enumerate(data_vars):
+        # mds_nh.sel(latitude_bins=80, year=years_ssw)['mean_{}'.format(d)].plot.line(ax=ax[0,j], c='g', **plot_args)
+        # mds_nh.sel(latitude_bins=60, year=years_ssw)['mean_{}'.format(d)].plot.line(ax=ax[1,j], c='g', **plot_args)
         for i,lat in enumerate(range(80,0,-20)):
             l_nh = mds_nh.sel(latitude_bins=lat)['mean_{}'.format(d)].plot.line(ax=ax[i, j], c='r', **plot_args)
             l_sh = mds_sh.sel(latitude_bins=-lat)['mean_{}'.format(d)].plot.line(ax=ax[i, j], c='b', **plot_args)
@@ -462,27 +462,81 @@ with xr.open_mfdataset([path+filename.format(y) for y in years]) as mds:
                 xlabel='', 
                 title='{}$^\circ$ - {}$^\circ$'.format(lat-10, lat+10),
                 )
+            if i==0:
+                ax[i,j].set_title(data_sym[j]+'\n'+'{}$^\circ$ - {}$^\circ$'.format(lat-10, lat+10))
             ax[i, j].legend([l_nh[0], l_sh[0]], ['NH', 'SH'], loc='upper right')
         mds_sh.sel(latitude_bins=0)['mean_{}'.format(d)].plot.line(ax=ax[-1, j], c='k', **plot_args)
         ax[-1, j].set(
-            xlabel='Month-eq to SH', 
+            xlabel='SH-eq DOY', 
             ylabel='[{}]'.format(mds['mean_{}'.format(d)].units), 
-            title='{}$^\circ$ - {}$^\circ$'.format(-10, 10),
+            title='{}$^\circ$ S - {}$^\circ$ N'.format(10, 10),
             )
     [[ax[i,j].ticklabel_format(axis='y', style='sci', scilimits=(3,3)) for i in range(ax.shape[0])] for j in range(ax.shape[1])]
-    ax[0, 0].set(ylim=(0,1.8e5))
-    # ax[0, 1].set(ylim=(80, 90))
-    # ax[0, 2].set(ylim=())
-    
+    ax[0,0].set_ylim(50e3, 200e3)
+    ax[0,1].set_ylim(80e3, 87e3)
+    ax[0,2].set_ylim(4.5e3, 12e3)
+
     plt.show()
-    
 
 #%%
-year = 2007
-filename = 'gauss_D_96_{}.nc'
+var = 'mean_apparent_solar_time'
+lats = np.arange(80, 20,-20)
+years=slice(2018)
+plot_args = dict(hue='year', alpha=0.3, add_legend=False)
+fig, ax = plt.subplots(4,1, sharex=True, sharey=True, figsize=(3,8))
+for i, lat in enumerate(lats):
+    l_sh = mds[var].sel(latitude_bins=-lat, year=years).plot.line(ax=ax[i], c='b', **plot_args)
+    l_nh = mds[var].sel(latitude_bins=lat, year=years).roll(
+        doy=180, roll_coords=False).plot.line(ax=ax[i], c='r', **plot_args)
+mds[var].sel(latitude_bins=0, year=years).plot.line(ax=ax[-1], c='k', **plot_args)
+
+# years_ssw = [2002, 2004, 2006, 2009, 2012, 2013]
+# mds.mean_sza.sel(latitude_bins=80, year=years_ssw).roll(
+#     doy=180, roll_coords=False).plot.line(
+#         x='doy', hue='year', c='k')
+
+# %% seasonal lattiudinal variations
+am_pm = 'All'
+min_sza = 96
+d_m = 'daily'
+path = '/home/anqil/Documents/osiris_database/iris_oh/statistics/ver/'
+filename = '{2}/{0}/{1}_{0}_{2}_ver_clima_{3}.nc'.format(min_sza, am_pm, d_m, '{}')
+
+with xr.open_mfdataset(path+filename.format('*')) as mds:
+    # mds = mds.assign_coords(z=mds.z*1e-3)
+    # mds.z.attrs['units'] = 'km'
+    mds['mean_ver'] *= np.pi*4/0.55 
+    mds['std_ver'] *= np.pi*4/0.55
+    mds = mds.reindex(latitude_bins=mds.latitude_bins[::-1])
+    #resample into monthly mean
+    mds = mds.where(mds.count_ver>50).resample(time="QS-JAN").mean()
+
+    #stack years
+    mds = mds.assign_coords(
+        dict(year=mds.time.dt.year, season=mds.time.dt.season)).set_index(
+        time=['year', 'season']).unstack().reindex(season='MAM JJA SON DJF'.split())
+
+    contourf_args = dict(vmin=0, cmap='viridis', figsize=(5,8), x='latitude_bins', y='z', row='season')
+    fc = mds.mean_ver.mean('year').sel(z=slice(75e3, 95e3)).plot.contourf(**contourf_args)
+    [fc.axes[i][0].ticklabel_format(axis='y', style='sci', scilimits=(3,3)) for i in range(4)]
+
+#%%
+year = 2012
+path = '/home/anqil/Documents/osiris_database/iris_oh/statistics/gauss/'
+filename = 'gauss_D_{}.nc'
 with xr.open_dataset(path+filename.format(year)) as ds:
+    ds.close()
     ds = ds.resample(time='1M').mean()
-    ds.count_sza.plot(x='time', row='latitude_bins', marker = '*', figsize=(8,8))
-ds.close()
+    
+    # plt.figure()
+    # ds.mean_peak_intensity.where(ds.count_sza>100).plot(x='time', row='latitude_bins', marker = '*', figsize=(5,8))
+    
+    plt.figure()
+    ds.mean_peak_intensity.plot.contourf(x='time', y='latitude_bins', robust=True)
+
+#%%
+path = '/home/anqil/Documents/osiris_database/iris_oh/statistics/gauss/PM/'
+filename = 'gauss_PM_geo_D_96_2001.nc'
+with xr.open_dataset(path+filename) as ds:
+    print(ds)
 # %%
-2007, 2008, 2009, 2010, 2011, 2012, 
