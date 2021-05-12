@@ -39,7 +39,7 @@ with xr.open_mfdataset([path+filename.format(y) for y in years]) as mds:
     mds_sh = mds.sel(latitude_bins=slice(-80,0))
 
 # %% look at each month at one latiude
-var = 'mean_peak_intensity'
+var = 'mean_apparent_solar_time'
 test = mds[var].resample(time='QS-Dec').mean('time').sel(latitude_bins=0)
 mean = test.assign_coords(
     year=test.time.dt.year, season=test.time.dt.season).set_index(
@@ -51,8 +51,8 @@ unstacked.plot(x='year', hue='season')#, row='latitude_bins')
 
 
 # %% scatter plot
-var2 = 'mean_peak_intensity'
-var1 = 'mean_apparent_solar_time'
+var1 = 'mean_peak_intensity'
+var2 = 'mean_apparent_solar_time'
 data1 = mds[var1].rolling(time=365, min_periods=90, center=True).mean('time')
 data2 = mds[var2].rolling(time=365, min_periods=90, center=True).mean('time')
 
@@ -86,16 +86,16 @@ ax[-1,0].set_title('{} $^\circ$ N - {} $^\circ$ S'.format(10, 10))
 
 ax[-1,1].set_axis_off()
 ax[-2,1].tick_params(labelbottom=True)
-# ax[-1,0].set_xlabel(var1)
-# ax[-2,1].set_xlabel(var1)
-# [ax[i,0].set_ylabel(var2) for i in range(5)]
+ax[-1,0].set_xlabel(var1)
+ax[-2,1].set_xlabel(var1)
+[ax[i,0].set_ylabel(var2) for i in range(5)]
 [ax[i,1].set_ylabel('') for i in range(5)]
 
 fig.suptitle('{} measurements'.format(am_pm), fontsize=16)
 
 # %% scatter plot
-var = 'mean_peak_intensity'
-data_running_mean = mds[var].rolling(time=365*2, min_periods=90, center=True).mean('time')
+var = 'mean_thickness'
+data_running_mean = mds[var].rolling(time=365, min_periods=90, center=True).mean('time')
 data_y107 = ds_y107.irradiance.rolling(time=365, center=True).mean('time').interp_like(mds).assign_attrs({'long_name':'Y10.7 index'})
 da = data_running_mean.assign_coords(y=data_y107).swap_dims(dict(time='y'))
 poly_coeff = da.polyfit(dim='y', deg=1).polyfit_coefficients
@@ -125,11 +125,11 @@ ax[-2,1].set_xlabel(var)
 fig.suptitle('{} measurements'.format(am_pm), fontsize=16)
 
 # %% line plot
-var = 'mean_apparent_solar_time'
+var = 'mean_sza'
 data_running_mean = mds[var].rolling(time=1, min_periods=1, center=True).mean('time')
 data_y107 = ds_y107.irradiance.rolling(time=27, center=True).mean('time').interp_like(mds).assign_attrs({'long_name':'Y10.7 index'})
 
-fig, ax = plt.subplots(5, 2, figsize=(8,10), sharex=True, sharey='row',
+fig, ax = plt.subplots(5, 2, figsize=(8,10), sharex=True, sharey=True,
             gridspec_kw=dict(hspace=0.5))
 dataplot_args = dict(x='time', color='C0')
 
@@ -160,6 +160,7 @@ ax[-2,1].tick_params(labelbottom=True, labelrotation=30)
 ax[-1,0].set_xlabel('Time')
 ax[-2,1].set_xlabel('Time')
 # [ax[i,0].set_ylabel('Peak Intensity') for i in range(5)]
+# [ax[i,0].set_ylim(17, 19.5) for i in range(1,5)]
 [ax[i,0].set_ylabel(var) for i in range(5)]
 [ax[i,1].set_ylabel('') for i in range(5)]
 
@@ -245,3 +246,6 @@ ax[-2,1].tick_params(labelbottom=True)
 [ax[i,1].set_ylabel('') for i in range(5)]
 
 fig.suptitle('{} measurements'.format(am_pm), fontsize=16)
+
+
+

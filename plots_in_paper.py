@@ -214,19 +214,19 @@ fwhm.plot(y='z')
 plt.xlabel('width [m]')
 
 #%% open gauss file
-path = '~/Documents/osiris_database/iris_oh/gauss_character/A_filtered/'
+path = '~/Documents/osiris_database/iris_oh/gauss_character/4pi/'
 ds_agc = xr.open_dataset(path+'gauss_{}.nc'.format(str(orbit).zfill(6)))
 ds_agc.close()
 
 # be careful here!
 ds_agc['thickness'] = ds_agc.peak_sigma.reduce(lambda x: 2*x, keep_attrs=True)
 ds_agc['thickness_error'] = ds_agc.peak_sigma_error.reduce(lambda x: 2*x, keep_attrs=True)
-ds_agc['peak_intensity'] *= np.pi*4
-ds_agc['peak_intensity_error'] *= np.pi*4
-ds_agc['cov_peak_intensity_peak_sigma'] *= np.pi*4
-ds_agc['cov_peak_intensity_peak_height'] *= np.pi*4
-ds_agc['zenith_intensity'] *= np.pi*4
-ds_agc['zenith_intensity_error'] *= np.pi*4
+# ds_agc['peak_intensity'] *= np.pi*4
+# ds_agc['peak_intensity_error'] *= np.pi*4
+# ds_agc['cov_peak_intensity_peak_sigma'] *= np.pi*4
+# ds_agc['cov_peak_intensity_peak_height'] *= np.pi*4
+# ds_agc['zenith_intensity'] *= np.pi*4
+# ds_agc['zenith_intensity_error'] *= np.pi*4
 
 ds_ver = ds_ver_4pi.update(ds_agc)
 ds_ver = ds_ver.swap_dims({'time': 'd'})
@@ -259,12 +259,49 @@ ax.legend(loc='upper right')
 ax.set_xlabel('VER [{}]'.format(ds_ver.ver.units))
 ax.set_title('')
 
+#%%
+fig, ax = plt.subplots(2,1, gridspec_kw=dict(height_ratios=[.1,1], hspace=0.3))
+colorplot_args = dict(x='d', vmin=0, vmax=12e3 *np.pi*4, ylim=[60e3, 95e3], 
+                cmap='viridis', add_colorbar=True)
+cbar_kwargs = dict(cax=ax[0], shrink=0.6, orientation='horizontal', label='')
+
+ds_ver.ver.where(ds_ver.A_peak>0.8).plot(ax=ax[1], **colorplot_args, cbar_kwargs=cbar_kwargs)
+
+ax[0].tick_params(tick2On=True, label2On=True, tick1On=False, label1On=False)
+ax[0].set_title('[{}]'.format(ds_ver.ver.units))
+
+ax[-1].set(xlabel='Horizontal distance long the orbit [km]',
+            ylabel='Altitude [m]',
+            title='OH (3-1) volume emission rate')
+
+ax[0].ticklabel_format(axis='x', style='sci', scilimits=(3,3))
+ax[0].ticklabel_format(axis='y', style='sci', scilimits=(3,3))
+ax[1].ticklabel_format(axis='x', style='sci', scilimits=(3,3))
+ax[1].ticklabel_format(axis='y', style='sci', scilimits=(3,3))
+
+#%%
+import cartopy.crs as ccrs
+ax = plt.axes(projection=ccrs.PlateCarree(central_longitude=180))
+plt.plot(ds_ver.longitude, ds_ver.latitude, 'r*', markersize=10,
+             transform=ccrs.PlateCarree())
+ax.coastlines()
+ax.set_global()
+
 #%% Gauss_orbit_example.png
 from characterise_agc_routine import gauss
 fig, ax = plt.subplots(5,2, sharex=False, figsize=(10,10), 
     gridspec_kw=dict(height_ratios=[0.1, 1,1,1,1], top=0.85, hspace=0.3, wspace=0.4))
 ax_twin = np.array([[ax[i,j].twinx() for j in range(2)] for i in range(len(ax))])
- 
+
+panel_labels = 'a b c d e f g h'.split()
+k = 0
+for j in range(2):
+    for i in range(1,5):
+        s = panel_labels[k]
+        ax[i,j].text(0.05, 0.9, '{})'.format(s), 
+            backgroundcolor='w', fontweight='bold', transform=ax[i,j].transAxes) 
+        k += 1
+
 colorplot_args = dict(x='d', vmin=0, vmax=12e3 *np.pi*4, ylim=[60e3, 95e3], 
                 cmap='viridis', add_colorbar=False)
 
