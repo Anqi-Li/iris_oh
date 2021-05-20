@@ -1,7 +1,5 @@
 #%%
-from re import X
 import numpy as np
-from numpy.core.fromnumeric import size
 import xarray as xr
 import glob
 from os import listdir
@@ -125,8 +123,8 @@ ax[-2,1].set_xlabel(var)
 fig.suptitle('{} measurements'.format(am_pm), fontsize=16)
 
 # %% line plot
-var = 'mean_sza'
-data_running_mean = mds[var].rolling(time=1, min_periods=1, center=True).mean('time')
+var = 'mean_peak_intensity'
+data_running_mean = mds[var].rolling(time=365, min_periods=90, center=True).mean('time')
 data_y107 = ds_y107.irradiance.rolling(time=27, center=True).mean('time').interp_like(mds).assign_attrs({'long_name':'Y10.7 index'})
 
 fig, ax = plt.subplots(5, 2, figsize=(8,10), sharex=True, sharey=True,
@@ -144,24 +142,24 @@ def plot_y107(ax, ticks=True):
         a_t.set_ylabel('')
 
 for i, lat in enumerate(range(80,0,-20)):
-    data_running_mean.sel(latitude_bins=lat).plot(ax=ax[i,0], **dataplot_args)
+    data_running_mean.sel(latitude_bins=-lat).plot(ax=ax[i,0], **dataplot_args)
     plot_y107(ax[i,0], ticks=False)
-    ax[i,0].set(ylabel='', xlabel='', title='{} - {} $^\circ$ N'.format(lat-10, lat+10))
-    data_running_mean.sel(latitude_bins=-lat).plot(ax=ax[i,1], **dataplot_args)
-    plot_y107(ax[i,1])
-    ax[i,1].set(ylabel='', xlabel='', title='{} - {} $^\circ$ S'.format(lat-10, lat+10)) 
+    ax[i,0].set(ylabel='', xlabel='', title='{} - {} $^\circ$ S'.format(lat-10, lat+10))
+    data_running_mean.sel(latitude_bins=lat).plot(ax=ax[i,1], **dataplot_args)
+    plot_y107(ax[i,1], ticks=False)
+    ax[i,1].set(ylabel='', xlabel='', title='{} - {} $^\circ$ N'.format(lat-10, lat+10)) 
 
 data_running_mean.sel(latitude_bins=0).plot(ax=ax[-1,0], **dataplot_args)
-plot_y107(ax[-1,0])
+plot_y107(ax[-1,0], ticks=False)
 ax[-1,0].set(ylabel='', xlabel='', title='{} $^\circ$ S - {} $^\circ$ N'.format(10, 10))
 
 ax[-1,1].set_axis_off()
 ax[-2,1].tick_params(labelbottom=True, labelrotation=30)
 ax[-1,0].set_xlabel('Time')
 ax[-2,1].set_xlabel('Time')
-# [ax[i,0].set_ylabel('Peak Intensity') for i in range(5)]
+[ax[i,0].set_ylabel('Peak Intensity') for i in range(5)]
 # [ax[i,0].set_ylim(17, 19.5) for i in range(1,5)]
-[ax[i,0].set_ylabel(var) for i in range(5)]
+# [ax[i,0].set_ylabel(var) for i in range(5)]
 [ax[i,1].set_ylabel('') for i in range(5)]
 
 fig.suptitle('{} measurements'.format(am_pm), fontsize=16)

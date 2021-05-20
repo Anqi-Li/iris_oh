@@ -270,7 +270,7 @@ ds_ver.ver.where(ds_ver.A_peak>0.8).plot(ax=ax[1], **colorplot_args, cbar_kwargs
 ax[0].tick_params(tick2On=True, label2On=True, tick1On=False, label1On=False)
 ax[0].set_title('[{}]'.format(ds_ver.ver.units))
 
-ax[-1].set(xlabel='Horizontal distance long the orbit [km]',
+ax[-1].set(xlabel='Horizontal distance along the orbit [km]',
             ylabel='Altitude [m]',
             title='OH (3-1) volume emission rate')
 
@@ -355,7 +355,7 @@ ax[4,1].set(title='Zenith intensity', ylabel='$V_{zenith}$ '+'[{}]'.format(ds_ve
 # ax[4,1].set(title='$\chi^2$', ylabel='')
 ax[4,0].set(ylabel='[$^\circ$ N]\n[$^\circ$ E]')
 ax[4,0].legend()
-[ax[-1,j].set(xlabel='Horizontal distance long the orbit [km]') for j in range(2)]
+[ax[-1,j].set(xlabel='Horizontal distance along the orbit [km]') for j in range(2)]
 
 ax[0,0].tick_params(tick2On=True, label2On=True, tick1On=False, label1On=False)
 ax[0,0].set_title('[{}]'.format(ds_ver.ver.units))

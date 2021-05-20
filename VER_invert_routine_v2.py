@@ -1,13 +1,52 @@
 #%%
 import numpy as np
 import xarray as xr
-from oem_functions import linear_oem
+# from oem_functions import linear_oem
 from geometry_functions import pathl1d_iris
 import glob
 from multiprocessing import Pool
 from os import listdir
 
 #%%
+def linear_oem(y, K, Se_inv, Sa_inv, xa):
+    if len(y.shape) == 1:
+        y = y.reshape(len(y),1)
+    if len(xa.shape) == 1:
+        xa = xa.reshape(len(xa),1)
+    G= np.linalg.solve(K.T.dot(Se_inv).dot(K) + Sa_inv, (K.T).dot(Se_inv))        
+    x_hat = xa + G.dot(y - K.dot(xa)) 
+    
+    return x_hat.squeeze(), G
+
+def mr_and_Sm(x_hat, K, Sa_inv, Se_inv):
+    if len(x_hat.shape) == 1:
+        x_hat = x_hat.reshape(len(x_hat),1)
+    A = Sa_inv + K.T.dot(Se_inv).dot(K)
+    b = K.T.dot(Se_inv)
+    G = np.linalg.solve(A, b) # gain matrix
+    AVK = G.dot(K)
+    MR = AVK.sum(axis=1)
+    Se = np.linalg.inv(Se_inv)
+#    Se = np.diag(1/np.diag(Se_inv)) #only works on diagonal matrix with no off-diagonal element
+    Sm = G.dot(Se).dot(G.T) #retrieval noise covariance
+    Ss = (AVK - np.eye(len(AVK))).dot(np.linalg.inv(Sa_inv)).dot((AVK - np.eye(len(AVK))).T)
+#     Ss = np.linalg.inv(K.T.dot(Se_inv).dot(K) + Sa_inv).dot(Sa_inv).dot(np.linalg.inv(K.T.dot(Se_inv).dot(K) + Sa_inv))
+    return MR, AVK, Sm, Ss
+
+def oem_cost_pro(y, y_fit, x_hat, Se_inv, Sa_inv, xa, *other_args):
+    if len(y.shape) == 1:
+        y = y.reshape(len(y),1)
+    if len(y_fit.shape) == 1:
+        y_fit = y_fit.reshape(len(y_fit),1)
+    if len(xa.shape) == 1:
+        xa = xa.reshape(len(xa),1)
+    if len(x_hat.shape) == 1:
+        x_hat = x_hat.reshape(len(xa),1)    
+    cost_x = (x_hat - xa).T.dot(Sa_inv).dot(x_hat - xa) / len(y)
+    cost_y = (y-y_fit).T.dot(Se_inv).dot(y-y_fit) / len(y)
+    return cost_x.squeeze(), cost_y.squeeze()
+
+
 def invert_1d(orbit, ch, path_limb, save_file=False, ver_file_pattern=None, im_lst=None, return_AVK=False):
     orbit_num = str(orbit).zfill(6)
     filename_limb = 'ir_slc_{}_ch{}.nc'.format(orbit_num, ch)
