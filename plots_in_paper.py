@@ -219,14 +219,21 @@ ds_agc = xr.open_dataset(path+'gauss_{}.nc'.format(str(orbit).zfill(6)))
 ds_agc.close()
 
 # be careful here!
-ds_agc['thickness'] = ds_agc.peak_sigma.reduce(lambda x: 2*x, keep_attrs=True)
-ds_agc['thickness_error'] = ds_agc.peak_sigma_error.reduce(lambda x: 2*x, keep_attrs=True)
+ds_agc['thickness'] = ds_agc.peak_sigma.reduce(lambda x: 2*np.sqrt(2*np.log(2))*x, keep_attrs=True)
+ds_agc['thickness_error'] = ds_agc.peak_sigma_error.reduce(lambda x: 2*np.sqrt(2*np.log(2))*x, keep_attrs=True)
 # ds_agc['peak_intensity'] *= np.pi*4
 # ds_agc['peak_intensity_error'] *= np.pi*4
 # ds_agc['cov_peak_intensity_peak_sigma'] *= np.pi*4
 # ds_agc['cov_peak_intensity_peak_height'] *= np.pi*4
-# ds_agc['zenith_intensity'] *= np.pi*4
-# ds_agc['zenith_intensity_error'] *= np.pi*4
+def error_prop(a, b, sigma_a, sigma_b, cov_ab):
+    return np.sqrt(a**2 * sigma_b**2 + b**2 * sigma_a**2 + 2*a*b*cov_ab)
+ds_agc['zenith_intensity'] = (np.sqrt(2*np.pi) * ds_agc.peak_intensity*ds_agc.peak_sigma*1e2) #* 1e-6 # R
+ds_agc['zenith_intensity_error'] = 2*np.pi * error_prop(
+    ds_agc.peak_intensity, ds_agc.peak_sigma*1e2, 
+    ds_agc.peak_intensity_error, ds_agc.peak_sigma_error*1e2, 
+    ds_agc.cov_peak_intensity_peak_sigma*1e2)#* 1e-6 # R
+ds_agc['zenith_intensity'].attrs['units'] = 'photons cm-2 s-1'
+ds_agc['zenith_intensity_error'].attrs['units'] = 'photons cm-2 s-1'
 
 ds_ver = ds_ver_4pi.update(ds_agc)
 ds_ver = ds_ver.swap_dims({'time': 'd'})
@@ -259,7 +266,7 @@ ax.legend(loc='upper right')
 ax.set_xlabel('VER [{}]'.format(ds_ver.ver.units))
 ax.set_title('')
 
-#%%
+#%% Presentation orbit plot
 fig, ax = plt.subplots(2,1, gridspec_kw=dict(height_ratios=[.1,1], hspace=0.3))
 colorplot_args = dict(x='d', vmin=0, vmax=12e3 *np.pi*4, ylim=[60e3, 95e3], 
                 cmap='viridis', add_colorbar=True)
@@ -279,7 +286,7 @@ ax[0].ticklabel_format(axis='y', style='sci', scilimits=(3,3))
 ax[1].ticklabel_format(axis='x', style='sci', scilimits=(3,3))
 ax[1].ticklabel_format(axis='y', style='sci', scilimits=(3,3))
 
-#%%
+plt.figure()
 import cartopy.crs as ccrs
 ax = plt.axes(projection=ccrs.PlateCarree(central_longitude=180))
 plt.plot(ds_ver.longitude, ds_ver.latitude, 'r*', markersize=10,
@@ -319,7 +326,7 @@ lineplot_args = dict(x='d', color='k', alpha=0.9)
 ds_ver.peak_intensity.plot(ax=ax[1,1], **lineplot_args, ylim=(0,3e4 *np.pi*4))
 ds_ver.peak_height.plot(ax=ax[2,1], **lineplot_args, ylim=(8e4, 9e4))
 ds_ver.thickness.plot(ax=ax[3,1], **lineplot_args, ylim=(0, 2e4))
-ds_ver.zenith_intensity.plot(ax=ax[4,1], **lineplot_args, ylim=(0, 6e4 *np.pi*4))
+ds_ver.zenith_intensity.plot(ax=ax[4,1], **lineplot_args, ylim=(0, 250e9))
 # ds_ver.chisq.plot(ax=ax[4,1], **lineplot_args, ylim=(0, 80))
 l_lon, = ds_ver.longitude.plot(ax=ax[4,0], label='longitude', x='d', c='k', ls='--', alpha=0.9)
 l_lat, = ds_ver.latitude.plot(ax=ax[4,0], label='latitude', x='d', c='k', ls='-.', alpha=0.9)
@@ -350,12 +357,12 @@ ax[2,0].set(title='Original VER')
 ax[3,0].set(title='Gaussian modelled VER')
 ax[1,1].set(title='Peak intensity', ylabel='$V_{peak}$ '+'[{}]'.format(ds_ver.peak_intensity.units))
 ax[2,1].set(title='Peak height', ylabel='$z_{peak}$ '+'[{}]'.format(ds_ver.peak_height.units))
-ax[3,1].set(title='Thickness', ylabel='$2 \sigma$ '+'[{}]'.format(ds_ver.thickness.units))
+ax[3,1].set(title='FWHM', ylabel='$2 \sqrt{2\ln2} \sigma$ '+'[{}]'.format(ds_ver.thickness.units))
 ax[4,1].set(title='Zenith intensity', ylabel='$V_{zenith}$ '+'[{}]'.format(ds_ver.zenith_intensity.units))
 # ax[4,1].set(title='$\chi^2$', ylabel='')
 ax[4,0].set(ylabel='[$^\circ$ N]\n[$^\circ$ E]')
 ax[4,0].legend()
-[ax[-1,j].set(xlabel='Horizontal distance along the orbit [km]') for j in range(2)]
+[ax[-1,j].set(xlabel='Distance along the orbit [km]') for j in range(2)]
 
 ax[0,0].tick_params(tick2On=True, label2On=True, tick1On=False, label1On=False)
 ax[0,0].set_title('[{}]'.format(ds_ver.ver.units))
@@ -374,9 +381,30 @@ ax[0,0].ticklabel_format(axis='x', style='sci', scilimits=(3,3))
 [ax[i,0].ticklabel_format(axis='y', style='sci', scilimits=(3,3)) for i in range(4)]
 [ax[i,1].ticklabel_format(axis='y', style='sci', scilimits=(3,3)) for i in range(5)]
 [ax[-1,j].ticklabel_format(axis='x', style='sci', scilimits=(3,3)) for j in range(2)]
+ax[-1,-1].ticklabel_format(axis='y', style='sci', scilimits=(9,9))
 
 fig.suptitle('Orbit no. {} \n {} \n to \n {}'.format(
     str(orbit).zfill(6), ds_ver.time[0].values, ds_ver.time[-1].values))
+#%%
+# def error_prop(a, b, sigma_a, sigma_b, cov_ab):
+#     return np.sqrt(a**2 * sigma_b**2 + b**2 * sigma_a**2 + 2*a*b*cov_ab)
+
+i = 1000
+(ds_ver.ver.integrate('z')*1e2*1e-6)[:i].plot(x='d', label='$\sum{V(z) dz}$')
+zenith_intensity = np.sqrt(2*np.pi) * ds_ver.peak_intensity*ds_ver.peak_sigma*1e2 * 1e-6 # R
+
+zenith_intensity_error = 2*np.pi * error_prop(ds_ver.peak_intensity, ds_ver.peak_sigma*1e2, 
+                ds_ver.peak_intensity_error, ds_ver.peak_sigma_error*1e2, 
+                ds_ver.cov_peak_intensity_peak_sigma*1e2) * 1e-6 # R
+(zenith_intensity)[:i].plot(x='d', label='$\sqrt{2 \pi} V_{peak} \sigma $')
+plt.fill_between(ds_ver.d[:i],
+                zenith_intensity[:i] + zenith_intensity_error[:i], 
+                zenith_intensity[:i] - zenith_intensity_error[:i], 
+                alpha=0.2)
+
+plt.ylabel('ZER [R]')
+plt.legend()
+plt.gca().ticklabel_format(axis='y', style='sci', scilimits=(3,3))
 
 # %% Monthly mean SZA
 # path = '/home/anqil/Documents/osiris_database/iris_oh/statistics/daily/'
@@ -390,7 +418,7 @@ fig.suptitle('Orbit no. {} \n {} \n to \n {}'.format(
 #     plt.ylabel('Latitude bins $\pm$ 10 $^\circ$')
 
 #%% Monthly_VER.png
-am_pm = 'All'
+am_pm = 'PM'
 min_sza = 96
 d_m = 'daily'
 path = '/home/anqil/Documents/osiris_database/iris_oh/statistics/ver/'
@@ -412,7 +440,7 @@ with xr.open_mfdataset(path+filename.format('*')) as mds:
     #shift NH 6 months then mean
     mds_nh = mds.sel(latitude_bins=slice(80,20)).roll(month=6, roll_coords=False).mean('year')
     mds_sh = mds.sel(latitude_bins=slice(0, -80)).mean('year')
-
+#%%
     # fc = mds_nh.merge(mds_sh).reindex(latitude_bins = mds.latitude_bins).mean_ver.plot.contourf(
     #     y='z', x='month', row='latitude_bins',
     #     figsize=(6,15), ylim=(75e3, 95e3), cmap='viridis', vmin=0, vmax=12e3*np.pi*4,
@@ -426,9 +454,10 @@ with xr.open_mfdataset(path+filename.format('*')) as mds:
     # fc.axes[-1][0].set_xlabel('Month eq. to NH')
     # plt.show()
     fig, ax = plt.subplots(5,2, figsize=(10,10), gridspec_kw=dict(hspace=0.4))
-    plt_args = dict(y='z', x='month', cmap='viridis',
+    plt_args = dict(y='z', x='month', cmap='RdBu_r',#viridis',
                     ylim=(75e3, 95e3), xlim=(1,12),  
-                    vmin=0, vmax=15e4, #12e3*np.pi*4,
+                    # vmin=0, vmax=15e4, 
+                    # extend='min',
                     add_colorbar=False)
     for i, lat in enumerate(range(80, 0, -20)):
         mds_sh.sel(latitude_bins=-lat).mean_ver.plot.contourf(ax=ax[i,0], **plt_args)
@@ -446,7 +475,9 @@ with xr.open_mfdataset(path+filename.format('*')) as mds:
 
     cbar_kwargs = dict(cax=ax[-1,1], 
             # format='%1.1e', ticks=[0, 7.5e04, 1.5e05], 
-            shrink=0.9, orientation='horizontal', label='[photons cm-3 s-1]')
+            shrink=0.9, orientation='horizontal', label='[photons cm-3 s-1]',
+            extend='min',
+            )
     cbar = fig.colorbar(c, **cbar_kwargs)
     cbar.formatter.set_powerlimits((0,0))
     
@@ -465,9 +496,9 @@ with xr.open_mfdataset([path+filename.format(y) for y in years]) as mds:
     mds['mean_peak_intensity'].attrs['units'] = 'photons cm-3 s-1'
     mds['mean_peak_height'].attrs['units'] = 'm'
     mds['mean_peak_sigma'].attrs['units'] = 'm'
-    mds['mean_thickness'] = 2*mds['mean_peak_sigma']
+    mds['mean_thickness'] = 2*np.sqrt(2*np.log(2))*mds['mean_peak_sigma']
     mds['mean_thickness'].attrs['units'] = 'm'
-    mds['std_thickness'] = 2*mds['std_peak_sigma']
+    mds['std_thickness'] = 2*np.sqrt(2*np.log(2))*mds['std_peak_sigma']
     
     # mds = mds.where(mds.count_sza>10).resample(time='1M').mean(keep_attrs=True)
     mds = mds.where(mds.count_sza>10).rolling(time=30, min_periods=10, center=True).mean('time')
@@ -480,10 +511,9 @@ with xr.open_mfdataset([path+filename.format(y) for y in years]) as mds:
     mds_nh = mds.sel(latitude_bins=slice(20,80)).roll(doy=180, roll_coords=False)
     mds_sh = mds.sel(latitude_bins=slice(-80,0))
 
-#%%
     # years_ssw = [2002, 2004, 2006, 2009, 2012, 2013]
-    data_vars = 'peak_intensity peak_height peak_sigma'.split()
-    data_sym = '$V_{peak}$ $z_{peak}$ $2\sigma$'.split()
+    data_vars = 'peak_intensity peak_height thickness'.split()
+    data_sym = '$V_{peak}$ $z_{peak}$ $2\sqrt{2\ln2}\sigma$'.split()
     # data_vars = 'apparent_solar_time sza'.split()
     # data_sym = 'LST SZA'.split()
     fig, ax = plt.subplots(5, len(data_vars), figsize=(15,10), sharex=True, sharey='col', gridspec_kw=dict(hspace=0.5))
@@ -511,7 +541,7 @@ with xr.open_mfdataset([path+filename.format(y) for y in years]) as mds:
     [[ax[i,j].ticklabel_format(axis='y', style='sci', scilimits=(3,3)) for i in range(ax.shape[0])] for j in range(ax.shape[1])]
     ax[0,0].set_ylim(50e3, 200e3)
     ax[0,1].set_ylim(80e3, 87e3)
-    ax[0,2].set_ylim(4.5e3, 12e3)
+    ax[0,2].set_ylim(4.5e3, 15e3)
 
     plt.show()
 
@@ -533,7 +563,7 @@ mds[var].sel(latitude_bins=0, year=years).plot.line(ax=ax[-1], c='k', **plot_arg
 #         x='doy', hue='year', c='k')
 
 # %% seasonal lattiudinal variations
-am_pm = 'All'
+am_pm = 'PM'
 min_sza = 96
 d_m = 'daily'
 path = '/home/anqil/Documents/osiris_database/iris_oh/statistics/ver/'
@@ -553,7 +583,10 @@ with xr.open_mfdataset(path+filename.format('*')) as mds:
         dict(year=mds.time.dt.year, season=mds.time.dt.season)).set_index(
         time=['year', 'season']).unstack().reindex(season='MAM JJA SON DJF'.split())
 
-    contourf_args = dict(vmin=0, cmap='viridis', figsize=(5,8), x='latitude_bins', y='z', row='season')
+    contourf_args = dict(vmin=0, vmax=15e4, 
+                    extend='min',cmap='viridis', 
+                    figsize=(5,8), 
+                    x='latitude_bins', y='z', row='season')
     fc = mds.mean_ver.mean('year').sel(z=slice(75e3, 95e3)).plot.contourf(**contourf_args)
     [fc.axes[i][0].ticklabel_format(axis='y', style='sci', scilimits=(3,3)) for i in range(4)]
 

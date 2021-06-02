@@ -50,7 +50,7 @@ unstacked.plot(x='year', hue='season')#, row='latitude_bins')
 
 # %% scatter plot
 var1 = 'mean_peak_intensity'
-var2 = 'mean_apparent_solar_time'
+var2 = 'mean_peak_height'
 data1 = mds[var1].rolling(time=365, min_periods=90, center=True).mean('time')
 data2 = mds[var2].rolling(time=365, min_periods=90, center=True).mean('time')
 
@@ -92,7 +92,7 @@ ax[-2,1].set_xlabel(var1)
 fig.suptitle('{} measurements'.format(am_pm), fontsize=16)
 
 # %% scatter plot
-var = 'mean_thickness'
+var = 'mean_peak_intensity'
 data_running_mean = mds[var].rolling(time=365, min_periods=90, center=True).mean('time')
 data_y107 = ds_y107.irradiance.rolling(time=365, center=True).mean('time').interp_like(mds).assign_attrs({'long_name':'Y10.7 index'})
 da = data_running_mean.assign_coords(y=data_y107).swap_dims(dict(time='y'))
@@ -122,6 +122,7 @@ ax[-2,1].set_xlabel(var)
 
 fig.suptitle('{} measurements'.format(am_pm), fontsize=16)
 
+ax[0,0].set_xlim(5e4, 1.25e5)
 # %% line plot
 var = 'mean_peak_intensity'
 data_running_mean = mds[var].rolling(time=365, min_periods=90, center=True).mean('time')

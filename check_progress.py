@@ -50,9 +50,9 @@ if ch == 3:
     path_ver = '/home/anqil/Documents/sshfs/oso_extra_storage/VER/Channel3/nightglow/'
 elif ch == 1:
     # path_ver = '/home/anqil/Documents/sshfs/oso_extra_storage/VER/oh/'
-    path_ver = '/home/anqil/Documents/sshfs/oso_extra_storage/VER/Channel1/nightglow/4pi/'
+    path_ver = '/home/anqil/Documents/sshfs/oso_extra_storage/VER/Channel1/nightglow/v2/*/'
 
-files_ver = [f for f in listdir(path_ver) if 'nc' in f]
+files_ver = glob.glob(path_ver+'*.nc') #[f for f in listdir(path_ver) if 'nc' in f]
 orbits_ver = [int(s[-9:-3]) for s in files_ver]
 
 path_char = '/home/anqil/Documents/osiris_database/iris_oh/'
@@ -73,7 +73,7 @@ hist_args = dict(histtype='step', bins=orbit_bins,)
 x0,*_ = plt.hist(orbits_limb, **hist_args, label='Limb radiance', color='k', alpha=0.3)
 x1,*_ = plt.hist(orbits_ver, **hist_args, label='Inverted VER', color='C3', alpha=0.8)
 
-x2,*_ = plt.hist(orbits_agc, **hist_args, label='Layer character', color='k')
+# x2,*_ = plt.hist(orbits_agc, **hist_args, label='Layer character', color='k')
 # plt.hist(orbits_sp, **hist_args, label='Spectral character')
 
 # plt.step(orbit_bins[1:], x0*0.5, label='50% of limb', where='pre', color='k', ls=':')
@@ -85,34 +85,11 @@ plt.xlabel('Year')
 
 plt.show()
 
-# %% make monthly files
-# import pandas as pd
-# from astropy.time import Time
-
-# time_stamp = pd.date_range(start='2007-12-31 23:59:59', end='2008-12-31 23:59:59', freq='M')
-# with xr.open_dataset('~/Documents/osiris_database/odin_rough_orbit.nc') as rough_orbit:
-#     rough_orbit = rough_orbit.rename({'mjd':'time'}).assign(
-#         time=Time(rough_orbit.mjd, format='mjd').datetime64
-#         ).interp(time=time_stamp).astype(int).orbit
-
-# def remove_duplicate(ds):
-#     ds.sel(time=~ds.indexes['time'].duplicated())
-#     return ds
-# # i = 0
-# files_ver = [f for f in listdir(path_ver) if 'nc' in f]
-
-# for i in [2, 8]:
-#     print(i+1)
-#     try:
-#         with xr.open_mfdataset(
-#             [path_ver + f for f in files_ver 
-#             if int(f[-9:-3]) in range(*tuple(
-#                 rough_orbit.isel(time=slice(i,i+2)).values)
-#                 )], preprocess=remove_duplicate) as mds:
-#             mds.to_netcdf(
-#                 '~/Documents/osiris_database/iris_oh/VER/iri_ch1_2008{}.nc'.format(
-#                 str(i+1).zfill(2)
-#                 ))
-#     except:
-#         # pass
-#         raise
+# %% check yearly files
+# path_year = '/home/anqil/Documents/sshfs/oso_extra_storage/VER/Channel1/nightglow/years/'
+# with xr.open_mfdataset([path_year+'iri_ch1_ver_{}.nc'.format(year) for year in range(2001,2010)], chunks=1000) as ds:
+#     ds.ver.where(ds.A_diag>0.8).groupby(ds.time.dt.month).mean('time').plot(y='z', x='month')
+#     # ds.time.groupby(ds.time.dt.month).count('time').plot()
+#     # plt.ylim(0, 4e5)
+#     # print(ds)
+# %%
