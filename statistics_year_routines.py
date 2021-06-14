@@ -10,9 +10,7 @@ from dask.diagnostics import ProgressBar
 # am_pm = 'PM'
 def average_year(year, am_pm):
     print(year)
-    time_stamp = pd.date_range(start='{}-01-01'.format(year), end='{}-01-01'.format(year+1), freq='D')
-    am_pm = 'PM'
-    ver_path = '/home/anqil/Documents/sshfs/oso_extra_storage/VER/Channel1/nightglow/years/'
+    ver_path = '/home/anqil/Documents/sshfs/oso_extra_storage/VER/Channel1/nightglow/years/false_zenith/'
     ver_filename = 'iri_ch1_ver_{}.nc'
     if year == 2001:
         file_lst = [ver_path+ver_filename.format(y) for y in [2001, 2002]]
@@ -55,9 +53,9 @@ def average_year(year, am_pm):
         lat_coord = []
         mean_daily, std_daily, count_daily = [], [], []
         for label, data in groups_lat:
-            mean_daily.append(data.resample(time='D').mean('time'))
-            std_daily.append(data.resample(time='D').std('time'))
-            count_daily.append(data.resample(time='D').count('time'))
+            mean_daily.append(data.resample(time='D').mean('time', keep_attrs=True))
+            std_daily.append(data.resample(time='D').std('time', keep_attrs=True))
+            count_daily.append(data.resample(time='D').count('time', keep_attrs=True))
             lat_coord.append(label)
             print(label)
         mean_daily = xr.concat(mean_daily, dim='latitude_bin').assign_coords(latitude_bin=lat_coord).sortby('latitude_bin')
@@ -74,8 +72,8 @@ def average_year(year, am_pm):
 
 #%%
 # year = 2008
-am_pm = 'PM'
-for year in range(2008, 2018):
+am_pm = 'ALL'
+for year in range(2001, 2008):
     ds = average_year(year, am_pm)
     print('saving VER year {}'.format(year))
     path = '/home/anqil/Documents/sshfs/oso_extra_storage/VER/Channel1/nightglow/averages/'
@@ -88,8 +86,8 @@ for year in range(2008, 2018):
 # path = '/home/anqil/Documents/sshfs/oso_extra_storage/VER/Channel1/nightglow/averages/'
 # filename = 'PM_daily_zonal_mean_{}.nc'.format(2001)
 # with xr.open_dataset(path+filename) as ds:
-#     print(ds)
-    # ds.mean_peak_intensity.plot.line(x='time', hue='latitude_bins')
-    # ds.mean_ver.plot(x='time', y='z', row='latitude_bins')
+#     # print(ds)
+#     # ds.mean_peak_intensity.plot.line(x='time', hue='latitude_bin')
+#     ds.mean_ver.plot(x='time', y='z', row='latitude_bin')
 
 # %%
