@@ -32,7 +32,7 @@ def average_year(year, am_pm):
         cond_sigma = np.logical_and(ds.peak_sigma<20e3, ds.peak_sigma>0).rename('cond_sigma')
         cond_height = np.logical_and(ds.peak_height<100e3, ds.peak_height>60e3).rename('cond_height')
         cond_chisq = (ds.chisq<10).rename('cond_chisq')
-        vars = ['peak_intensity', 'peak_height', 'peak_sigma', 
+        vars = ['peak_intensity', 'peak_height', 'peak_sigma', 'zenith_intensity', 
                 'latitude', 'longitude', 'sza', 'apparent_solar_time']
         ds_agc = ds[vars]
         ds_agc = ds_agc.where(cond_intensity * cond_sigma * cond_height * cond_chisq * cond_sza * cond_lst) 
@@ -72,11 +72,11 @@ def average_year(year, am_pm):
 
 #%%
 # year = 2008
-am_pm = 'ALL'
-for year in range(2001, 2008):
+am_pm = 'PM'
+for year in range(2001, 2018):
     ds = average_year(year, am_pm)
     print('saving VER year {}'.format(year))
-    path = '/home/anqil/Documents/sshfs/oso_extra_storage/VER/Channel1/nightglow/averages/'
+    path = '/home/anqil/Documents/sshfs/oso_extra_storage/VER/Channel1/nightglow/averages/zenith/'
     filename = '{}_daily_zonal_mean_{}.nc'.format(am_pm, year)
     delayed_obj = ds.to_netcdf(path+filename, mode='w', compute=False)
     with ProgressBar():

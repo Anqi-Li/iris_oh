@@ -10,8 +10,29 @@ path='/home/anqil/Documents/osiris_database/ex_data/cmam/'
 file = '{}_6hrChem_CMAM-Ext_CMAM30-SD_r1i1p1_2010010100-2010063018.nc'
 
 def get_ds(species):
-    return xr.open_dataset(path+file.format(species))
+    ds = xr.open_dataset(path+file.format(species))
+    ds.close()
+    return ds
 
+#%%
+species = 'ntveoh62'
+ds = get_ds(species)
+ds.ntveoh62.mean(
+    'lon'
+# ).resample(
+#     time='1M', #loffset='-6M'
+# ).mean('time', keep_attrs=True,
+).sel(
+    plev=slice(30,0),
+    time=slice('2010-06-01', '2010-06-03'),
+).interp(
+    lat=np.arange(0,90,20),
+).plot.line(
+    x='time', 
+    hue='plev', 
+    col='lat', 
+    col_wrap=3, 
+    sharey=False)
 #%%
 species = 'numden'
 ds = get_ds(species)

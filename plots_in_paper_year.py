@@ -110,8 +110,6 @@ ds_ver = ds_ver.update({'tp' : (['time'],
 d = haversine(ds_ver.longitude[0], ds_ver.latitude[0], ds_ver.longitude, ds_ver.latitude)
 ds_ver = ds_ver.update({'d' : (['time'], d, dict(units='km'))})
 
-ds_ver_4pi = ds_ver.copy()
-
 # %% VER_histogram.png
 from xhistogram.xarray import histogram
 import matplotlib.pylab as pl
@@ -211,30 +209,13 @@ fwhm.plot(y='z')
 plt.xlabel('width [m]')
 
 #%% open gauss file
-# path = '~/Documents/osiris_database/iris_oh/gauss_character/4pi/'
-# ds_agc = xr.open_dataset(path+'gauss_{}.nc'.format(str(orbit).zfill(6)))
-# ds_agc.close()
-
-# # be careful here!
-# ds_agc['thickness'] = ds_agc.peak_sigma.reduce(lambda x: 2*np.sqrt(2*np.log(2))*x, keep_attrs=True)
-# ds_agc['thickness_error'] = ds_agc.peak_sigma_error.reduce(lambda x: 2*np.sqrt(2*np.log(2))*x, keep_attrs=True)
-
-# def error_prop(a, b, sigma_a, sigma_b, cov_ab):
-#     return np.sqrt(a**2 * sigma_b**2 + b**2 * sigma_a**2 + 2*a*b*cov_ab)
-# ds_agc['zenith_intensity'] = (np.sqrt(2*np.pi) * ds_agc.peak_intensity*ds_agc.peak_sigma*1e2) #* 1e-6 # R
-# ds_agc['zenith_intensity_error'] = 2*np.pi * error_prop(
-#     ds_agc.peak_intensity, ds_agc.peak_sigma*1e2, 
-#     ds_agc.peak_intensity_error, ds_agc.peak_sigma_error*1e2, 
-#     ds_agc.cov_peak_intensity_peak_sigma*1e2)#* 1e-6 # R
-# ds_agc['zenith_intensity'].attrs['units'] = 'photons cm-2 s-1'
-# ds_agc['zenith_intensity_error'].attrs['units'] = 'photons cm-2 s-1'
-# ds_ver = ds_ver_4pi.update(ds_agc)
-# ds_ver = ds_ver.swap_dims({'time': 'd'})
-
 path = '~/Documents/sshfs/oso_extra_storage/VER/Channel1/nightglow/years/'
 ds_ver = xr.open_dataset(path+'iri_ch1_ver_{}.nc'.format(year))
 ds_ver.close()
 ds_ver = ds_ver.where(ds_ver.orbit==orbit, drop=True)
+ds_ver['thickness'] = ds_ver.peak_sigma.reduce(lambda x: 2*np.sqrt(2*np.log(2))*x, keep_attrs=True)
+ds_ver['thickness_error'] = ds_ver.peak_sigma_error.reduce(lambda x: 2*np.sqrt(2*np.log(2))*x, keep_attrs=True)
+
 
 ds_ver = ds_ver.update({'tp' : (['time'],
         (ds_ver.time - ds_ver.time[0])/(ds_ver.time[-1]-ds_ver.time[0]))})
@@ -361,7 +342,7 @@ ax[2,0].set(title='Original VER')
 ax[3,0].set(title='Gaussian modelled VER')
 ax[1,1].set(title='Peak intensity', ylabel='$V_{peak}$ '+'[{}]'.format(ds_ver.peak_intensity.units))
 ax[2,1].set(title='Peak height', ylabel='$z_{peak}$ '+'[{}]'.format(ds_ver.peak_height.units))
-ax[3,1].set(title='FWHM', ylabel='$2 \sqrt{2\ln2} \sigma$ '+'[{}]'.format(ds_ver.thickness.units))
+ax[3,1].set(title='Thickness', ylabel='$2 \sqrt{2\ln2} \sigma$ '+'[{}]'.format(ds_ver.thickness.units))
 ax[4,1].set(title='Zenith intensity', ylabel='$V_{zenith}$ '+'[{}]'.format(ds_ver.zenith_intensity.units))
 # ax[4,1].set(title='$\chi^2$', ylabel='')
 ax[4,0].set(ylabel='[$^\circ$ N]\n[$^\circ$ E]')
