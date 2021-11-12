@@ -80,10 +80,11 @@ def invert_1d(orbit, ch, path_limb, save_file=False, ver_file_pattern=None, im_l
         time_save.append(time[im_lst[i]].values)
 
     if len(time_save) > 0:
+        print(ir.orbit.item())
         result_1d = xr.Dataset().update({
             'time': (['time'], time_save),
             'z': (['z',], z, {'units': 'm'}),
-            'pixel': (['pixel',], l1.pixel),
+            'pixel': (['pixel',], l1.pixel.values),
             'ver': (['time','z'], ver, {'long name': 'VER', 'units': 'photons cm-3 s-1'}),
             'mr': (['time','z'], mr),
             'A_diag': (['time','z'], A_diag),
@@ -93,10 +94,10 @@ def invert_1d(orbit, ch, path_limb, save_file=False, ver_file_pattern=None, im_l
             'error2_smoothing': (['time','z'], error2_smoothing),
             # 'limb_fit': (['time','pixel'], limb_fit),
             # 'chisq': (['time'])
-            'latitude': (['time',], ir.latitude.sel(time=time_save)),
-            'longitude': (['time',], ir.longitude.sel(time=time_save)),
-            'sza': (['time',], ir.sza.sel(time=time_save)),
-            'apparent_solar_time': (['time',], ir.apparent_solar_time.sel(time=time_save)),
+            'latitude': (['time',], ir.latitude.sel(time=time_save).values),
+            'longitude': (['time',], ir.longitude.sel(time=time_save).values),
+            'sza': (['time',], ir.sza.sel(time=time_save).values),
+            'apparent_solar_time': (['time',], ir.apparent_solar_time.sel(time=time_save).values),
             'orbit': ir.orbit,
             # 'channel': ir.channel,
             })

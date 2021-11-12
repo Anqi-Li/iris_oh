@@ -12,7 +12,7 @@ orbit_num = str(orbit).zfill(6)
 path = '~/Documents/osiris_database/globus/StrayLightCorrected/Channel{}/'.format(ch)
 filename = 'ir_slc_{}_ch{}.nc'.format(orbit_num, ch)
 ir = xr.open_dataset(path+filename).sel(pixel=slice(21,128))
-
+ir.close()
 #%%
 l1 = ir.data.where(ir.data.notnull(), drop=True).where(ir.sza>90, drop=True)
 time = l1.time
@@ -239,7 +239,7 @@ grid_rho = np.append(edges_rho - np.gradient(edges_rho)/2,
                        edges_rho[-1]+np.gradient(edges_rho)[-1]/2)
 
 #%% cal Jacobian
-%%time
+# %%time
 shape_tomo = (len(grid_alpha), len(grid_beta), len(grid_rho))
 #====num of columns & rows of jacobian
 col_len = len(grid_alpha) * len(grid_beta) * len(grid_rho)

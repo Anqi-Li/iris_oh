@@ -185,6 +185,14 @@ da.assign_coords(
                 x='doy', y='latitude_bins', #col='year', 
                 robust=True, figsize=(10,4));
 
+#%%
+da = mds['mean_peak_height']
+mds_doy = da.assign_coords(
+    dict(year=da.time.dt.year, doy=da.time.dt.dayofyear)).set_index(
+    time=['year', 'doy']).unstack()
+mds_doy.pipe(lambda x: (200/x.mean('year')*100).mean('doy')).plot()
+mds_doy.pipe(lambda x: (700/x.mean('year')*100).mean('doy')).plot()
+
 #%%  anomaly correlation with lya plot
 # var = 'mean_peak_height' 
 # var_label = 'Height anomaly' 
