@@ -4,13 +4,15 @@ import xarray as xr
 from multiprocessing import Pool
 import pandas as pd
 from dask.diagnostics import ProgressBar
+import warnings
+warnings.filterwarnings("ignore")
 
 #%%
 # year = 2001
 # am_pm = 'PM'
 def average_year(year, am_pm):
     print(year)
-    ver_path = '/home/anqil/Documents/sshfs/oso_extra_storage/VER/Channel1/nightglow/years/false_zenith/'
+    ver_path = '/home/anqil/Documents/sshfs/oso_extra_storage/VER/Channel1/nightglow/years/'
     ver_filename = 'iri_ch1_ver_{}.nc'
     if year == 2001:
         file_lst = [ver_path+ver_filename.format(y) for y in [2001, 2002]]
@@ -72,7 +74,7 @@ def average_year(year, am_pm):
 
 #%%
 # year = 2008
-am_pm = 'PM'
+am_pm = 'ALL'
 for year in range(2001, 2018):
     ds = average_year(year, am_pm)
     print('saving VER year {}'.format(year))

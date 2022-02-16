@@ -373,7 +373,7 @@ fig.suptitle('Orbit no. {} \n {} \n to \n {}'.format(
 
 #%% load zonal mean data
 am_pm = 'ALL'
-path = '/home/anqil/Documents/sshfs/oso_extra_storage/VER/Channel1/nightglow/averages/'
+path = '/home/anqil/Documents/sshfs/oso_extra_storage/VER/Channel1/nightglow/averages/archive/'
 filename = '{}_daily_zonal_mean_{}.nc'.format(am_pm, '{}')
 with xr.open_mfdataset(path+filename.format('*')) as mds:
     mds = mds.rename(dict(latitude_bin='latitude_bins'))
