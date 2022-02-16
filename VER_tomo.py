@@ -18,10 +18,10 @@ l1 = ir.data.where(ir.data.notnull(), drop=True).where(ir.sza>90, drop=True)
 time = l1.time
 error = ir.error.sel(time=time)
 tan_alt = ir.altitude.sel(time=time)
-# tan_lat, *_ = xr.broadcast(ir.latitude.sel(time=time), tan_alt)
-# tan_lon, *_ = xr.broadcast(ir.longitude.sel(time=time), tan_alt)
-# sc_look = ir.look_ecef.sel(time=time)
-# sc_pos, *_ = xr.broadcast(ir.position_ecef.sel(time=time), sc_look)
+tan_lat, *_ = xr.broadcast(ir.latitude.sel(time=time), tan_alt)
+tan_lon, *_ = xr.broadcast(ir.longitude.sel(time=time), tan_alt)
+sc_look = ir.look_ecef.sel(time=time)
+sc_pos, *_ = xr.broadcast(ir.position_ecef.sel(time=time), sc_look)
 
 # %% interpolation in altitude grid
 # alts_interp = np.arange(20e3, 90e3, .5e3)
@@ -92,7 +92,7 @@ for i in range(len(im_lst)):
     mr.append(A.sum(axis=1)) #sum over rows 
     error2_retrieval.append(np.diag(Sm))
     error2_smoothing.append(np.diag(Ss))
-    limb_fit.append(xr.DataArray(y-K.dot(x), coords=[('pixel', h.pixel)]
+    limb_fit.append(xr.DataArray(y-K.dot(x), coords=[('pixel', h.pixel.values)]
                       ).reindex(pixel=l1.pixel))
     time_save.append(time[im_lst[i]].values)
 
@@ -100,16 +100,16 @@ if len(time_save) > 0:
     result_1d = xr.Dataset().update({
         'time': (['time'], time_save),
         'z': (['z',], z, {'units': 'm'}),
-        'pixel': (['pixel',], l1.pixel),
+        'pixel': (['pixel',], l1.pixel.values),
         'ver': (['time','z'], ver, {'long name': 'VER', 'units': 'photons cm-3 s-1'}),
         'mr': (['time','z'], mr),
         'error2_retrieval': (['time','z'], error2_retrieval),
         'error2_smoothing': (['time','z'], error2_smoothing),
         'limb_fit': (['time','pixel'], limb_fit),
-        'latitude': (['time',], ir.latitude.sel(time=time_save)),
-        'longitude': (['time',], ir.longitude.sel(time=time_save)),
-        'orbit': ir.orbit,
-        'channel': ir.channel,
+        'latitude': (['time',], ir.latitude.sel(time=time_save).values),
+        'longitude': (['time',], ir.longitude.sel(time=time_save).values),
+        'orbit': ir.orbit.values,
+        'channel': ir.channel.values,
         })
 
 #%
